@@ -1,0 +1,9 @@
+## Interface: 11200
+## Title: |cffffffff[|cff00ff00Hacienda|cffffffff]|r
+## Author: Bha!
+## Version: 1.0
+## Notes: Almacena y muestra el historial de OS pendientes
+## SavedVariables: HaciendaSavedData, HaciendaSettings
+## SavedVariablesPerCharacter: HaciendaCharacterSettings
+
+Hacienda.xml
