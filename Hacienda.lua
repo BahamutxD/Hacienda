@@ -1114,172 +1114,191 @@ function Hacienda:UpdateContactList()
     table.insert(Hacienda.activeContactFrames, paidOSFrame)
     yOffset = yOffset - 18
 
-    -- Then show other contacts with pending OS
-    if Hacienda.conversations then
-        for contact, messages in pairs(Hacienda.conversations) do
-            -- Skip Banco de la Guild and OS Pagadas since we already added them
-            if contact ~= GUILD_BANK_CONTACT and contact ~= PAID_OS_CONTACT and messages and table.getn(messages) > 0 then
-                -- Calculate group pending total
-                local groupTotal = Hacienda:GetGroupPending(contact)
+    -- Collect unique main characters to display
+    local mainChars = {}
+    for contact, messages in pairs(Hacienda.conversations or {}) do
+        if contact ~= GUILD_BANK_CONTACT and contact ~= PAID_OS_CONTACT and messages and table.getn(messages) > 0 then
+            local main = Hacienda:GetMainChar(contact)
+            mainChars[main] = true
+        end
+    end
+    -- Also include mains from linkedChars with no active conversations
+    for alt, main in pairs(Hacienda.linkedChars or {}) do
+        mainChars[main] = true
+    end
+
+    -- Display contacts (by main character)
+    for main, _ in pairs(mainChars) do
+        -- Calculate group pending total
+        local groupTotal = Hacienda:GetGroupPending(main)
+        
+        -- Only show contacts with group pending OS or unread messages
+        local hasUnread = false
+        local members = Hacienda:GetGroupMembers(main)
+        for _, member in ipairs(members) do
+            if Hacienda.unreadCounts[member] and Hacienda.unreadCounts[member] > 0 then
+                hasUnread = true
+                break
+            end
+        end
+        
+        if groupTotal > 0 or hasUnread then
+            local contactFrame = Hacienda:GetContactFrame()
+            contactFrame:SetPoint("TOPLEFT", Hacienda.contactList, "TOPLEFT", 5, yOffset)
+            
+            -- Format the group total if it exists
+            local pendingParts = {}
+            if groupTotal > 0 then
+                local gold = floor(groupTotal / (COPPER_PER_SILVER * SILVER_PER_GOLD))
+                local silver = floor((groupTotal - (gold * COPPER_PER_SILVER * SILVER_PER_GOLD)) / COPPER_PER_SILVER)
+                local copper = mod(groupTotal, COPPER_PER_SILVER)
                 
-                -- Only show contacts with group pending OS or unread messages
-                if groupTotal > 0 or (Hacienda.unreadCounts[contact] and Hacienda.unreadCounts[contact] > 0) then
-                    local contactFrame = Hacienda:GetContactFrame()
-                    contactFrame:SetPoint("TOPLEFT", Hacienda.contactList, "TOPLEFT", 5, yOffset)
-                    
-                    -- Format the group total if it exists
-                    local pendingParts = {}
-                    if groupTotal > 0 then
-                        local gold = floor(groupTotal / (COPPER_PER_SILVER * SILVER_PER_GOLD))
-                        local silver = floor((groupTotal - (gold * COPPER_PER_SILVER * SILVER_PER_GOLD)) / COPPER_PER_SILVER)
-                        local copper = mod(groupTotal, COPPER_PER_SILVER)
-                        
-                        if gold > 0 then 
-                            table.insert(pendingParts, "|cFFFFFF00"..gold.."g|r") -- Gold color
-                        end
-                        if silver > 0 then 
-                            table.insert(pendingParts, "|cFFC0C0C0"..silver.."s|r") -- Silver color
-                        end
-                        if copper > 0 then 
-                            table.insert(pendingParts, "|cFFEDA55F"..copper.."c|r") -- Copper color
-                        end
-                    end
-                    
-                    -- Combine contact name, unread count, and group total
-                    local displayText = contact
-                    if Hacienda.unreadCounts[contact] and Hacienda.unreadCounts[contact] > 0 then
-                        displayText = displayText .. " |cffff80ff[" .. Hacienda.unreadCounts[contact] .. "]|r"
-                    end
-                    
-                    if table.getn(pendingParts) > 0 then
-                        displayText = displayText .. " (" .. table.concat(pendingParts, " ") .. ")"
-                    end
-                    
-                    contactFrame.text:SetText(displayText)
-                    contactFrame.statusIcon:SetText("•")
-                    
-                    -- Set color based on status: red for unpaid, yellow for partially paid, green for no OS
-                    local members = Hacienda:GetGroupMembers(contact)
-                    local hasPartialPayments = false
-                    for _, member in ipairs(members) do
-                        local msgs = Hacienda.conversations[member]
-                        if msgs then
-                            for _, msg in ipairs(msgs) do
-                                if msg.outgoing and msg.moneyAmount and (not msg.paymentTime) and (msg.paidAmount or 0) > 0 then
-                                    hasPartialPayments = true
-                                    break
-                                end
-                            end
-                            if hasPartialPayments then break end
-                        end
-                    end
-                    
-                    if groupTotal > 0 then
-                        if hasPartialPayments then
-                            contactFrame.statusIcon:SetTextColor(1, 1, 0) -- Yellow for partially paid
-                        else
-                            contactFrame.statusIcon:SetTextColor(1, 0, 0) -- Red for unpaid
-                        end
-                    else
-                        contactFrame.statusIcon:SetTextColor(0, 1, 0) -- Green for no OS
-                    end
-                    
-                    contactFrame.text:SetTextColor(1, 1, 1)
-                    contactFrame.contactName = contact
-                    contactFrame:SetScript("OnMouseDown", function() Hacienda:SelectContact(this.contactName) end)
-                    contactFrame:SetScript("OnEnter", function() 
-                        this.text:SetTextColor(1, 0.82, 0)
-                        
-                        -- Show tooltip with detailed OS information for group
-                        GameTooltip:SetOwner(this, "ANCHOR_RIGHT")
-                        
-                        local contactName = this.contactName or "Unknown"
-                        GameTooltip:SetText(contactName)
-                        
-                        local members = Hacienda:GetGroupMembers(contactName)
-                        local groupTotal = Hacienda:GetGroupPending(contactName)
-                        
-                        if table.getn(members) > 1 then
-                            local linkedList = table.concat(members, ", ")
-                            GameTooltip:AddLine("Linked characters: " .. linkedList, 1, 1, 0)
-                        end
-                        
-                        if groupTotal > 0 then
-                            GameTooltip:AddLine("Group Pending OS:", 0.8, 0.8, 0.8)
-                            
-                            for _, member in ipairs(members) do
-                                GameTooltip:AddLine(member .. ":", 0.8, 0.8, 1)
-                                if Hacienda.conversations[member] then
-                                    for _, msg in ipairs(Hacienda.conversations[member]) do
-                                        if msg.outgoing and msg.moneyAmount and (not msg.paymentTime) then
-                                            local remaining = msg.moneyAmount - (msg.paidAmount or 0)
-                                            if remaining > 0 then
-                                                local gold = floor(remaining / (COPPER_PER_SILVER * SILVER_PER_GOLD))
-                                                local silver = floor((remaining - (gold * COPPER_PER_SILVER * SILVER_PER_GOLD)) / COPPER_PER_SILVER)
-                                                local copper = mod(remaining, COPPER_PER_SILVER)
-                                                
-                                                local amountText = ""
-                                                if gold > 0 then amountText = amountText .. gold .. "g " end
-                                                if silver > 0 then amountText = amountText .. silver .. "s " end
-                                                if copper > 0 then amountText = amountText .. copper .. "c" end
-                                                
-                                                local paidText = ""
-                                                if msg.paidAmount and msg.paidAmount > 0 then
-                                                    local paidGold = floor(msg.paidAmount / (COPPER_PER_SILVER * SILVER_PER_GOLD))
-                                                    local paidSilver = floor((msg.paidAmount - (paidGold * COPPER_PER_SILVER * SILVER_PER_GOLD)) / COPPER_PER_SILVER)
-                                                    local paidCopper = mod(msg.paidAmount, COPPER_PER_SILVER)
-                                                    
-                                                    paidText = " (Paid: "
-                                                    if paidGold > 0 then paidText = paidText .. paidGold .. "g " end
-                                                    if paidSilver > 0 then paidText = paidText .. paidSilver .. "s " end
-                                                    if paidCopper > 0 then paidText = paidText .. paidCopper .. "c" end
-                                                    paidText = paidText .. ")"
-                                                end
-                                                
-                                                GameTooltip:AddLine("  " .. amountText .. paidText, 1, 1, 1)
-                                            end
-                                        end
-                                    end
-                                else
-                                    GameTooltip:AddLine("  No OS records found", 1, 0.5, 0.5)
-                                end
-                            end
-                            
-                            -- Add total line
-                            local totalGold = floor(groupTotal / (COPPER_PER_SILVER * SILVER_PER_GOLD))
-                            local totalSilver = floor((groupTotal - (totalGold * COPPER_PER_SILVER * SILVER_PER_GOLD)) / COPPER_PER_SILVER)
-                            local totalCopper = mod(groupTotal, COPPER_PER_SILVER)
-                            
-                            local totalText = "Group Total: "
-                            if totalGold > 0 then totalText = totalText .. totalGold .. "g " end
-                            if totalSilver > 0 then totalText = totalText .. totalSilver .. "s " end
-                            if totalCopper > 0 then totalText = totalText .. totalCopper .. "c" end
-                            
-                            GameTooltip:AddLine(" ")
-                            GameTooltip:AddLine(totalText, 0, 1, 0)
-                        else
-                            GameTooltip:AddLine("No pending OS", 0.5, 1, 0.5)
-                        end
-                        
-                        GameTooltip:Show()
-                    end)
-                    contactFrame:SetScript("OnLeave", function() 
-                        this.text:SetTextColor(1, 1, 1)
-                        GameTooltip:Hide()
-                    end)
-                    -- Add right-click functionality (deletes conversation and debt, no pending check)
-                    contactFrame:RegisterForClicks("LeftButtonUp", "RightButtonUp")
-                    contactFrame:SetScript("OnClick", function()
-                        if arg1 == "RightButton" then
-                            Hacienda:DeleteConversation(this.contactName)
-                        elseif arg1 == "LeftButton" and IsShiftKeyDown() then
-                            Hacienda:WhisperDebtReminder(this.contactName)
-                        end
-                    end)
-                    table.insert(Hacienda.activeContactFrames, contactFrame)
-                    yOffset = yOffset - 18
+                if gold > 0 then 
+                    table.insert(pendingParts, "|cFFFFFF00"..gold.."g|r") -- Gold color
+                end
+                if silver > 0 then 
+                    table.insert(pendingParts, "|cFFC0C0C0"..silver.."s|r") -- Silver color
+                end
+                if copper > 0 then 
+                    table.insert(pendingParts, "|cFFEDA55F"..copper.."c|r") -- Copper color
                 end
             end
+            
+            -- Combine contact name, unread count, and group total
+            local displayText = main
+            for _, member in ipairs(members) do
+                if Hacienda.unreadCounts[member] and Hacienda.unreadCounts[member] > 0 then
+                    displayText = displayText .. " |cffff80ff[" .. Hacienda.unreadCounts[member] .. "]|r"
+                    break
+                end
+            end
+            
+            if table.getn(pendingParts) > 0 then
+                displayText = displayText .. " (" .. table.concat(pendingParts, " ") .. ")"
+            end
+            
+            contactFrame.text:SetText(displayText)
+            contactFrame.statusIcon:SetText("•")
+            
+            -- Set color based on status: red for unpaid, yellow for partially paid, green for no OS
+            local hasPartialPayments = false
+            for _, member in ipairs(members) do
+                local msgs = Hacienda.conversations[member]
+                if msgs then
+                    for _, msg in ipairs(msgs) do
+                        if msg.outgoing and msg.moneyAmount and (not msg.paymentTime) and (msg.paidAmount or 0) > 0 then
+                            hasPartialPayments = true
+                            break
+                        end
+                    end
+                    if hasPartialPayments then break end
+                end
+            end
+            
+            if groupTotal > 0 then
+                if hasPartialPayments then
+                    contactFrame.statusIcon:SetTextColor(1, 1, 0) -- Yellow for partially paid
+                else
+                    contactFrame.statusIcon:SetTextColor(1, 0, 0) -- Red for unpaid
+                end
+            else
+                contactFrame.statusIcon:SetTextColor(0, 1, 0) -- Green for no OS
+            end
+            
+            contactFrame.text:SetTextColor(1, 1, 1)
+            contactFrame.contactName = main
+            contactFrame:SetScript("OnMouseDown", function() Hacienda:SelectContact(this.contactName) end)
+            contactFrame:SetScript("OnEnter", function() 
+                this.text:SetTextColor(1, 0.82, 0)
+                
+                -- Show tooltip with detailed OS information for group
+                GameTooltip:SetOwner(this, "ANCHOR_RIGHT")
+                
+                local contactName = this.contactName or "Unknown"
+                GameTooltip:SetText(contactName)
+                
+                local members = Hacienda:GetGroupMembers(contactName)
+                local groupTotal = Hacienda:GetGroupPending(contactName)
+                
+                if table.getn(members) > 1 then
+                    local linkedList = table.concat(members, ", ")
+                    GameTooltip:AddLine("Linked characters: " .. linkedList, 1, 1, 0)
+                end
+                
+                if groupTotal > 0 then
+                    GameTooltip:AddLine("Group Pending OS:", 0.8, 0.8, 0.8)
+                    
+                    for _, member in ipairs(members) do
+                        GameTooltip:AddLine(member .. ":", 0.8, 0.8, 1)
+                        if Hacienda.conversations[member] then
+                            for _, msg in ipairs(Hacienda.conversations[member]) do
+                                if msg.outgoing and msg.moneyAmount and (not msg.paymentTime) then
+                                    local remaining = msg.moneyAmount - (msg.paidAmount or 0)
+                                    if remaining > 0 then
+                                        local gold = floor(remaining / (COPPER_PER_SILVER * SILVER_PER_GOLD))
+                                        local silver = floor((remaining - (gold * COPPER_PER_SILVER * SILVER_PER_GOLD)) / COPPER_PER_SILVER)
+                                        local copper = mod(remaining, COPPER_PER_SILVER)
+                                        
+                                        local amountText = ""
+                                        if gold > 0 then amountText = amountText .. gold .. "g " end
+                                        if silver > 0 then amountText = amountText .. silver .. "s " end
+                                        if copper > 0 then amountText = amountText .. copper .. "c" end
+                                        
+                                        local paidText = ""
+                                        if msg.paidAmount and msg.paidAmount > 0 then
+                                            local paidGold = floor(msg.paidAmount / (COPPER_PER_SILVER * SILVER_PER_GOLD))
+                                            local paidSilver = floor((msg.paidAmount - (paidGold * COPPER_PER_SILVER * SILVER_PER_GOLD)) / COPPER_PER_SILVER)
+                                            local paidCopper = mod(msg.paidAmount, COPPER_PER_SILVER)
+                                            
+                                            paidText = " (Paid: "
+                                            if paidGold > 0 then paidText = paidText .. paidGold .. "g " end
+                                            if paidSilver > 0 then paidText = paidText .. paidSilver .. "s " end
+                                            if paidCopper > 0 then paidText = paidText .. paidCopper .. "c" end
+                                            paidText = paidText .. ")"
+                                        end
+                                        
+                                        GameTooltip:AddLine("  " .. amountText .. paidText, 1, 1, 1)
+                                    end
+                                end
+                            end
+                        else
+                            GameTooltip:AddLine("  No OS records found", 1, 0.5, 0.5)
+                        end
+                    end
+                    
+                    -- Add total line
+                    local totalGold = floor(groupTotal / (COPPER_PER_SILVER * SILVER_PER_GOLD))
+                    local totalSilver = floor((groupTotal - (totalGold * COPPER_PER_SILVER * SILVER_PER_GOLD)) / COPPER_PER_SILVER)
+                    local totalCopper = mod(groupTotal, COPPER_PER_SILVER)
+                    
+                    local totalText = "Group Total: "
+                    if totalGold > 0 then totalText = totalText .. totalGold .. "g " end
+                    if totalSilver > 0 then totalText = totalText .. totalSilver .. "s " end
+                    if totalCopper > 0 then totalText = totalText .. totalCopper .. "c" end
+                    
+                    GameTooltip:AddLine(" ")
+                    GameTooltip:AddLine(totalText, 0, 1, 0)
+                else
+                    GameTooltip:AddLine("No pending OS", 0.5, 1, 0.5)
+                end
+                
+                GameTooltip:Show()
+            end)
+            contactFrame:SetScript("OnLeave", function() 
+                this.text:SetTextColor(1, 1, 1)
+                GameTooltip:Hide()
+            end)
+            -- Add right-click functionality (deletes conversation and debt)
+            contactFrame:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+            contactFrame:SetScript("OnClick", function()
+                if arg1 == "RightButton" then
+                    Hacienda:DeleteConversation(this.contactName)
+                elseif arg1 == "LeftButton" and IsShiftKeyDown() then
+                    Hacienda:WhisperDebtReminder(this.contactName)
+                end
+            end)
+            table.insert(Hacienda.activeContactFrames, contactFrame)
+            yOffset = yOffset - 18
         end
     end
     
@@ -1300,7 +1319,7 @@ function Hacienda:DeleteConversation(contactName)
         return
     end
     
-    -- Get group members and delete all (force-remove debt regardless of status)
+    -- Get group members and delete conversation-related data
     local members = Hacienda:GetGroupMembers(contactName)
     for _, member in ipairs(members) do
         -- Remove from conversations
@@ -1322,11 +1341,6 @@ function Hacienda:DeleteConversation(contactName)
         if Hacienda.paidConversations[member] then
             Hacienda.paidConversations[member] = nil
         end
-        
-        -- Remove from linked if alt
-        if Hacienda.linkedChars[member] then
-            Hacienda.linkedChars[member] = nil
-        end
     end
     
     -- Remove debt information from guild notes
@@ -1347,9 +1361,8 @@ function Hacienda:DeleteConversation(contactName)
     Hacienda:UpdateContactList()
     Hacienda:UpdateTotalDebtDisplay()
     
-    DEFAULT_CHAT_FRAME:AddMessage("|cffffffff[|cff00ff00Hacienda|cffffffff]|r Conversation group with " .. contactName .. " deleted (debt cleared).")
+    DEFAULT_CHAT_FRAME:AddMessage("|cffffffff[|cff00ff00Hacienda|cffffffff]|r Conversation group with " .. contactName .. " deleted (debt cleared, links preserved).")
 end
-
 -- New function to whisper debt reminder to player
 function Hacienda:WhisperDebtReminder(playerName)
     if not playerName or playerName == GUILD_BANK_CONTACT or playerName == PAID_OS_CONTACT then
@@ -1458,7 +1471,13 @@ function Hacienda:DeleteConversation(contactName)
         return
     end
     
-    -- Get group members and delete all (force-remove debt regardless of status)
+    -- Debug: Log linkedChars before deletion
+    DEFAULT_CHAT_FRAME:AddMessage("|cffffffff[|cff00ff00Hacienda|cffffffff]|r Before deletion, linkedChars for " .. contactName .. ":")
+    for alt, main in pairs(Hacienda.linkedChars or {}) do
+        DEFAULT_CHAT_FRAME:AddMessage("|cffffffff[|cff00ff00Hacienda|cffffffff]|r   " .. alt .. " -> " .. main)
+    end
+    
+    -- Get group members and delete conversation-related data
     local members = Hacienda:GetGroupMembers(contactName)
     for _, member in ipairs(members) do
         -- Remove from conversations
@@ -1480,11 +1499,6 @@ function Hacienda:DeleteConversation(contactName)
         if Hacienda.paidConversations[member] then
             Hacienda.paidConversations[member] = nil
         end
-        
-        -- Remove from linked if alt
-        if Hacienda.linkedChars[member] then
-            Hacienda.linkedChars[member] = nil
-        end
     end
     
     -- Remove debt information from guild notes
@@ -1501,11 +1515,17 @@ function Hacienda:DeleteConversation(contactName)
         end
     end
     
+    -- Debug: Log linkedChars after deletion
+    DEFAULT_CHAT_FRAME:AddMessage("|cffffffff[|cff00ff00Hacienda|cffffffff]|r After deletion, linkedChars for " .. contactName .. ":")
+    for alt, main in pairs(Hacienda.linkedChars or {}) do
+        DEFAULT_CHAT_FRAME:AddMessage("|cffffffff[|cff00ff00Hacienda|cffffffff]|r   " .. alt .. " -> " .. main)
+    end
+    
     -- Update the contact list and total debt
     Hacienda:UpdateContactList()
-    Hacienda:UpdateTotalDebtDisplay() -- Changed from UpdateTotalDebt to UpdateTotalDebtDisplay
+    Hacienda:UpdateTotalDebtDisplay()
     
-    DEFAULT_CHAT_FRAME:AddMessage("|cffffffff[|cff00ff00Hacienda|cffffffff]|r Conversation group with " .. contactName .. " deleted (debt cleared).")
+    DEFAULT_CHAT_FRAME:AddMessage("|cffffffff[|cff00ff00Hacienda|cffffffff]|r Conversation group with " .. contactName .. " deleted (debt cleared, links preserved).")
 end
 
 function Hacienda:SelectContact(contact)
@@ -1862,9 +1882,20 @@ function Hacienda:CheckAndClearPendingOS(playerName, depositAmount, depositTime)
     for _, member in ipairs(members) do
         if self.conversations[member] then
             for index, msg in ipairs(self.conversations[member]) do
-                local remaining = msg.moneyAmount - (msg.paidAmount or 0)
-                if msg.outgoing and msg.moneyAmount and not msg.paymentTime and remaining > 0 then
-                    table.insert(unpaid, {member = member, index = index, msg = msg, remaining = remaining, time = msg.time})
+                -- Ensure msg has moneyAmount and it's a number
+                if msg.outgoing and msg.moneyAmount and type(msg.moneyAmount) == "number" and not msg.paymentTime then
+                    local remaining = msg.moneyAmount - (msg.paidAmount or 0)
+                    if remaining > 0 then
+                        table.insert(unpaid, {member = member, index = index, msg = msg, remaining = remaining, time = msg.time})
+                    end
+                else
+                    -- Log invalid messages for debugging
+                    if msg.outgoing and not msg.paymentTime then
+                        DEFAULT_CHAT_FRAME:AddMessage(string.format(
+                            "|cffffffff[|cff00ff00Hacienda|cffffffff]|r Warning: Skipping invalid message for %s: %s (moneyAmount: %s, system: %s)",
+                            member, tostring(msg.message), tostring(msg.moneyAmount), tostring(msg.system)
+                        ))
+                    end
                 end
             end
         end
@@ -1896,7 +1927,7 @@ function Hacienda:CheckAndClearPendingOS(playerName, depositAmount, depositTime)
     for member, _ in pairs(affectedMembers) do
         local total = 0
         for _, msg in ipairs(self.conversations[member] or {}) do
-            if msg.outgoing and msg.moneyAmount and not msg.paymentTime then
+            if msg.outgoing and msg.moneyAmount and type(msg.moneyAmount) == "number" and not msg.paymentTime then
                 total = total + (msg.moneyAmount - (msg.paidAmount or 0))
             end
         end
@@ -1908,14 +1939,14 @@ function Hacienda:CheckAndClearPendingOS(playerName, depositAmount, depositTime)
     end
     
     -- Archive fully paid messages
-	for i = table.getn(clearedMessages), 1, -1 do
-		local cl = clearedMessages[i]
-		local paidMessage = table.remove(self.conversations[cl.member], cl.index)
-		if not self.paidConversations[cl.member] then
-			self.paidConversations[cl.member] = {}
-		end
-		table.insert(self.paidConversations[cl.member], paidMessage)
-	end
+    for i = table.getn(clearedMessages), 1, -1 do
+        local cl = clearedMessages[i]
+        local paidMessage = table.remove(self.conversations[cl.member], cl.index)
+        if not self.paidConversations[cl.member] then
+            self.paidConversations[cl.member] = {}
+        end
+        table.insert(self.paidConversations[cl.member], paidMessage)
+    end
     
     -- Add system message for the payment
     local amountApplied = depositAmount - remainingDeposit
@@ -1955,12 +1986,14 @@ function Hacienda:CheckAndClearPendingOS(playerName, depositAmount, depositTime)
             end
         end
         
+        -- Update guild note for the player
+        Hacienda:UpdateGuildNoteWithDebt(playerName)
+        
         return true
     end
     
     return false
 end
-
 -------------------------------------------------
 -- Export / Import (Classic-Compatible)
 -------------------------------------------------
