@@ -1576,7 +1576,7 @@ function Hacienda:ProcessBankTransaction(logLine)
         self:CheckAndClearPendingOS(player, amountCopper, timestamp)
 
         -- Rest of the existing deposit processing code...
-        local actionText = "depositÃ³"
+        local actionText = "deposita"
         local gold = floor(amountCopper / (COPPER_PER_SILVER * SILVER_PER_GOLD))
         local silver = floor((amountCopper - (gold * COPPER_PER_SILVER * SILVER_PER_GOLD)) / COPPER_PER_SILVER)
         local copper = mod(amountCopper, COPPER_PER_SILVER)
