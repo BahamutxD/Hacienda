@@ -529,7 +529,7 @@ function Hacienda:ProcessMoneyLog(logData)
                 
                 if action == ACTION_DEPOSIT_MONEY then
                     -- Only process if not a duplicate
-                    if not self:IsDuplicateTransaction(timestamp, player, "depositÃ³", amount) then
+                    if not self:IsDuplicateTransaction(timestamp, player, "deposito", amount) then
                         self:ProcessBankTransaction(transaction)
                         addedCount = addedCount + 1
                     end
@@ -653,8 +653,8 @@ function Hacienda:CreateFrame()
 
     -- Main Frame
     local frame = CreateFrame("Frame", "HaciendaFrame", UIParent)
-    frame:SetWidth(550 * Hacienda.scaleFactor)
-    frame:SetHeight(450 * Hacienda.scaleFactor)
+    frame:SetWidth(590 * Hacienda.scaleFactor)
+    frame:SetHeight(445 * Hacienda.scaleFactor)
     frame:SetPoint("CENTER", UIParent, "CENTER", 0, 0)
     frame:SetFrameStrata("MEDIUM")
     frame:SetToplevel(true)
@@ -681,7 +681,7 @@ function Hacienda:CreateFrame()
     -- Title
     local title = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
     title:SetPoint("TOP", frame, "TOP", 0, -10 * Hacienda.scaleFactor)
-    title:SetText("Hacienda Conq")
+    title:SetText("Hacienda Conquistadores")
 
     -- Close
     local closeButton = CreateFrame("Button", nil, frame, "UIPanelCloseButton")
@@ -696,7 +696,7 @@ function Hacienda:CreateFrame()
 
     -- Contact Frame (Deudores)
     local contactFrame = CreateFrame("Frame", nil, frame)
-    contactFrame:SetWidth(140 * Hacienda.scaleFactor)
+    contactFrame:SetWidth(170 * Hacienda.scaleFactor)
     contactFrame:SetHeight(250 * Hacienda.scaleFactor)
     contactFrame:SetPoint("TOPLEFT", frame, "TOPLEFT", 10 * Hacienda.scaleFactor, -70 * Hacienda.scaleFactor) -- Moved down from -50
     contactFrame:SetBackdrop({
@@ -724,7 +724,7 @@ function Hacienda:CreateFrame()
 
     -- Chat Frame (Historial de conversaciones)
     local chatFrame = CreateFrame("Frame", nil, frame)
-    chatFrame:SetWidth(365 * Hacienda.scaleFactor)
+    chatFrame:SetWidth(390 * Hacienda.scaleFactor)
     chatFrame:SetHeight(250 * Hacienda.scaleFactor)
     chatFrame:SetPoint("TOPLEFT", contactFrame, "TOPRIGHT", 10 * Hacienda.scaleFactor, 0)
     chatFrame:SetBackdrop({
@@ -750,7 +750,7 @@ function Hacienda:CreateFrame()
 
     -- Data Sync Panel
     local syncFrame = CreateFrame("Frame", nil, frame)
-    syncFrame:SetWidth(140 * Hacienda.scaleFactor)
+    syncFrame:SetWidth(170 * Hacienda.scaleFactor)
     syncFrame:SetHeight(100 * Hacienda.scaleFactor)
     syncFrame:SetPoint("TOPLEFT", contactFrame, "BOTTOMLEFT", 0, -10 * Hacienda.scaleFactor)
     syncFrame:SetBackdrop({
@@ -763,26 +763,26 @@ function Hacienda:CreateFrame()
     syncFrame:SetBackdropBorderColor(0.6, 0.6, 0.6)
 
     local syncTitle = syncFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    syncTitle:SetPoint("TOP", syncFrame, "TOP", 0, -5 * Hacienda.scaleFactor)
+    syncTitle:SetPoint("TOP", syncFrame, "TOP", 0, -10 * Hacienda.scaleFactor)
     syncTitle:SetText("Data Sync")
 
     local importButton = CreateFrame("Button", nil, syncFrame, "UIPanelButtonTemplate")
     importButton:SetWidth(100 * Hacienda.scaleFactor)
     importButton:SetHeight(20 * Hacienda.scaleFactor)
-    importButton:SetPoint("TOP", syncTitle, "BOTTOM", 0, -5 * Hacienda.scaleFactor)
+    importButton:SetPoint("TOP", syncTitle, "BOTTOM", 0, -15 * Hacienda.scaleFactor)
     importButton:SetText("Import")
     importButton:SetScript("OnClick", function() Hacienda:ShowImportExportFrame("import") end)
 
     local exportButton = CreateFrame("Button", nil, syncFrame, "UIPanelButtonTemplate")
     exportButton:SetWidth(100 * Hacienda.scaleFactor)
     exportButton:SetHeight(20 * Hacienda.scaleFactor)
-    exportButton:SetPoint("TOP", importButton, "BOTTOM", 0, -2 * Hacienda.scaleFactor)
+    exportButton:SetPoint("TOP", importButton, "BOTTOM", 0, -12 * Hacienda.scaleFactor)
     exportButton:SetText("Export")
     exportButton:SetScript("OnClick", function() Hacienda:ShowImportExportFrame("export") end)
 
     -- Debt Entry Frame (Deuda Manual)
     local debtEntryFrame = CreateFrame("Frame", nil, frame)
-    debtEntryFrame:SetWidth(365 * Hacienda.scaleFactor)
+    debtEntryFrame:SetWidth(390 * Hacienda.scaleFactor)
     debtEntryFrame:SetHeight(100 * Hacienda.scaleFactor)
     debtEntryFrame:SetPoint("TOPLEFT", chatFrame, "BOTTOMLEFT", 0, -10 * Hacienda.scaleFactor)
     debtEntryFrame:SetBackdrop({
@@ -795,11 +795,11 @@ function Hacienda:CreateFrame()
     debtEntryFrame:SetBackdropBorderColor(0.6, 0.6, 0.6)
 
     local manualDebtTitle = debtEntryFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    manualDebtTitle:SetPoint("TOPLEFT", debtEntryFrame, "TOPLEFT", 10 * Hacienda.scaleFactor, -5 * Hacienda.scaleFactor) -- Moved left to match linkTitle
+    manualDebtTitle:SetPoint("TOPLEFT", debtEntryFrame, "TOPLEFT", 10 * Hacienda.scaleFactor, -10 * Hacienda.scaleFactor)
     manualDebtTitle:SetText("Deuda Manual")
 
     local playerLabel = debtEntryFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    playerLabel:SetPoint("TOPLEFT", debtEntryFrame, "TOPLEFT", 10 * Hacienda.scaleFactor, -20 * Hacienda.scaleFactor) -- Moved left
+    playerLabel:SetPoint("TOPLEFT", debtEntryFrame, "TOPLEFT", 10 * Hacienda.scaleFactor, -35* Hacienda.scaleFactor)
     playerLabel:SetText("Personaje:")
 
     local playerBox = CreateFrame("Frame", nil, debtEntryFrame)
@@ -832,7 +832,7 @@ function Hacienda:CreateFrame()
     Hacienda.debtPlayerInput:SetScript("OnLeave", function() GameTooltip:Hide() end)
 
     local amountLabel = debtEntryFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    amountLabel:SetPoint("LEFT", playerBox, "RIGHT", 15 * Hacienda.scaleFactor, 0)
+    amountLabel:SetPoint("LEFT", playerBox, "RIGHT", 15 * Hacienda.scaleFactor, -0)
     amountLabel:SetText("Cantidad:")
 
     local amountBox = CreateFrame("Frame", nil, debtEntryFrame)
@@ -874,11 +874,11 @@ function Hacienda:CreateFrame()
 
     -- Link Characters UI (horizontal layout, no button)
     local linkTitle = debtEntryFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    linkTitle:SetPoint("TOPLEFT", debtEntryFrame, "TOPLEFT", 10 * Hacienda.scaleFactor, -50 * Hacienda.scaleFactor)
+    linkTitle:SetPoint("TOPLEFT", debtEntryFrame, "TOPLEFT", 10 * Hacienda.scaleFactor, -60 * Hacienda.scaleFactor)
     linkTitle:SetText("Link Characters")
 
     local mainLabel = debtEntryFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    mainLabel:SetPoint("TOPLEFT", debtEntryFrame, "TOPLEFT", 10 * Hacienda.scaleFactor, -70 * Hacienda.scaleFactor)
+    mainLabel:SetPoint("TOPLEFT", debtEntryFrame, "TOPLEFT", 10 * Hacienda.scaleFactor, -80* Hacienda.scaleFactor)
     mainLabel:SetText("Main Char:")
 
     Hacienda.linkMainInput = CreateFrame("EditBox", nil, debtEntryFrame)
@@ -925,16 +925,7 @@ function Hacienda:CreateFrame()
         Hacienda.linkMainInput:SetText("")
         Hacienda.linkAltInput:SetText("")
     end)
-	local unlinkButton = CreateFrame("Button", nil, debtEntryFrame, "UIPanelButtonTemplate")
-	unlinkButton:SetWidth(80 * Hacienda.scaleFactor)
-	unlinkButton:SetHeight(20 * Hacienda.scaleFactor)
-	unlinkButton:SetPoint("TOPLEFT", Hacienda.linkAltInput, "BOTTOMLEFT", 0, -5 * Hacienda.scaleFactor)
-	unlinkButton:SetText("Unlink")
-	unlinkButton:SetScript("OnClick", function()
-		Hacienda:UnlinkCharacters(Hacienda.linkMainInput:GetText(), Hacienda.linkAltInput:GetText())
-		Hacienda.linkMainInput:SetText("")
-		Hacienda.linkAltInput:SetText("")
-	end)
+
 
     Hacienda.linkAltInput:SetScript("OnEscapePressed", function() Hacienda.linkAltInput:ClearFocus() end)
 end
@@ -955,14 +946,12 @@ function Hacienda:CreateMinimapButton()
     minimapButton.texture:SetWidth(20)
     minimapButton.texture:SetPoint("CENTER", minimapButton, "CENTER", 0, 0)
 
-    -- border
     minimapButton.border = minimapButton:CreateTexture(nil, "OVERLAY")
     minimapButton.border:SetTexture("Interface\\Minimap\\MiniMap-TrackingBorder")
     minimapButton.border:SetHeight(54)
     minimapButton.border:SetWidth(54)
     minimapButton.border:SetPoint("TOPLEFT", minimapButton, "TOPLEFT", 0, 0)
 
-    -- highlight
     minimapButton.highlight = minimapButton:CreateTexture(nil, "HIGHLIGHT")
     minimapButton.highlight:SetTexture("Interface\\Minimap\\UI-Minimap-ZoomButton-Highlight")
     minimapButton.highlight:SetBlendMode("ADD")
@@ -970,35 +959,101 @@ function Hacienda:CreateMinimapButton()
     minimapButton.highlight:SetWidth(32)
     minimapButton.highlight:SetPoint("CENTER", minimapButton, "CENTER", 0, 0)
 
-    -- make the button draggable
-    minimapButton:SetScript("OnDragStart", function()
-        this:StartMoving()
-    end)
-    minimapButton:SetScript("OnDragStop", function()
-        this:StopMovingOrSizing()
+    -- right-click menu
+    local menu = CreateFrame("Frame", "HaciendaMinimapMenu", UIParent)
+    menu:SetWidth(150)
+    menu:SetHeight(1) -- will resize dynamically
+    menu:SetBackdrop({
+        bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background",
+        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+        tile = true, tileSize = 16, edgeSize = 12,
+        insets = { left = 3, right = 3, top = 3, bottom = 3 }
+    })
+    menu:SetBackdropColor(0, 0, 0, 0.9)
+
+    menu:SetFrameStrata("TOOLTIP")   -- always above UI
+    menu:SetFrameLevel(999)
+    menu:Hide()
+
+    local menuButtons = {}
+    local function AddMenuButton(text, order, onClick)
+        local btn = CreateFrame("Button", nil, menu, "UIPanelButtonTemplate")
+        btn:SetText(text)
+        btn:SetWidth(120)
+        btn:SetHeight(22)
+        btn:SetPoint("TOP", menu, "TOP", 0, -10 - (order-1)*25)
+        btn:SetScript("OnClick", function()
+            onClick()
+            menu:Hide()
+        end)
+        table.insert(menuButtons, btn)
+        menu:SetHeight(table.getn(menuButtons) * 25 + 20)
+    end
+
+    -- menu entries
+    AddMenuButton("Open Hacienda", 1, function() Hacienda:ToggleFrame() end)
+    AddMenuButton("Export Data", 2, function() Hacienda:ShowImportExportFrame("export") end)
+    AddMenuButton("Import Data", 3, function() Hacienda:ShowImportExportFrame("import") end)
+    AddMenuButton("Update Notes", 4, function() Hacienda:UpdateAllGuildNotes() end)
+    AddMenuButton("Linked Characters", 5, function() Hacienda:ShowLinkedCharactersFrame()
+        if HaciendaLinksFrame then
+            if HaciendaLinksFrame:IsShown() then
+                HaciendaLinksFrame:Hide()
+            else
+                HaciendaLinksFrame:Show()
+            end
+        end
     end)
 
     minimapButton:RegisterForClicks("LeftButtonUp", "RightButtonUp")
     minimapButton:SetScript("OnClick", function()
         if arg1 == "LeftButton" then
             Hacienda:ToggleFrame()
+        elseif arg1 == "RightButton" then
+            if menu:IsShown() then
+                menu:Hide()
+            else
+                -- smart anchor
+                local x, y = minimapButton:GetCenter()
+                local uiWidth, uiHeight = UIParent:GetWidth(), UIParent:GetHeight()
+                menu:ClearAllPoints()
+
+                if y > uiHeight/2 then
+                    -- top half → menu goes down
+                    if x < uiWidth/2 then
+                        menu:SetPoint("TOPLEFT", minimapButton, "BOTTOMLEFT", 0, -2)
+                    else
+                        menu:SetPoint("TOPRIGHT", minimapButton, "BOTTOMRIGHT", 0, -2)
+                    end
+                else
+                    -- bottom half → menu goes up
+                    if x < uiWidth/2 then
+                        menu:SetPoint("BOTTOMLEFT", minimapButton, "TOPLEFT", 0, 2)
+                    else
+                        menu:SetPoint("BOTTOMRIGHT", minimapButton, "TOPRIGHT", 0, 2)
+                    end
+                end
+                menu:Show()
+            end
         end
     end)
 
-    -- tooltip 
     minimapButton:SetScript("OnEnter", function()
         GameTooltip:SetOwner(minimapButton, "ANCHOR_LEFT")
         GameTooltip:SetText("Hacienda", 1, 1, 1)
         GameTooltip:AddLine("Left-click to open Hacienda", nil, nil, nil, 1)
+        GameTooltip:AddLine("Right-click for options", nil, nil, nil, 1)
         GameTooltip:Show()
     end)
-
     minimapButton:SetScript("OnLeave", function() GameTooltip:Hide() end)
-    
+
     minimapButton:EnableMouse(true)
     minimapButton:RegisterForDrag("LeftButton")
-    
+    minimapButton:SetScript("OnDragStart", function() this:StartMoving() end)
+    minimapButton:SetScript("OnDragStop", function() this:StopMovingOrSizing() end)
+
     self.minimapButton = minimapButton
+    self.minimapMenu = menu
 end
 
 -- New function for manual debt entry
@@ -1116,7 +1171,7 @@ function Hacienda:UpdateContactList()
     paidOSFrame:SetPoint("TOPLEFT", Hacienda.contactList, "TOPLEFT", 5, yOffset)
     paidOSFrame.text:SetText(PAID_OS_CONTACT)
     paidOSFrame.statusIcon:SetText("•")
-    paidOSFrame.statusIcon:SetTextColor(0.5, 0.5, 1) -- Blue for OS Pagadas
+    paidOSFrame.statusIcon:SetTextColor(1, 1, 0) -- Yellow for OS Pagadas
     paidOSFrame.text:SetTextColor(1, 1, 1)
     paidOSFrame.contactName = PAID_OS_CONTACT
     paidOSFrame:SetScript("OnMouseDown", function() Hacienda:SelectContact(PAID_OS_CONTACT) end)
@@ -1125,192 +1180,117 @@ function Hacienda:UpdateContactList()
     table.insert(Hacienda.activeContactFrames, paidOSFrame)
     yOffset = yOffset - 18
 
-    -- Collect unique main characters to display
-    local mainChars = {}
-    for contact, messages in pairs(Hacienda.conversations or {}) do
-        if contact ~= GUILD_BANK_CONTACT and contact ~= PAID_OS_CONTACT and messages and table.getn(messages) > 0 then
-            local main = Hacienda:GetMainChar(contact)
-            mainChars[main] = true
+    -- Sort contacts by group total descending
+    local sortedContacts = {}
+    local processedMains = {}
+    for contact, _ in pairs(Hacienda.pendingTotals) do
+        local main = self:GetMainChar(contact)
+        if not processedMains[main] then
+            processedMains[main] = true
+            table.insert(sortedContacts, {main = main, total = self:GetGroupPending(main)})
         end
     end
-    -- Also include mains from linkedChars with no active conversations
-    for alt, main in pairs(Hacienda.linkedChars or {}) do
-        mainChars[main] = true
-    end
+    table.sort(sortedContacts, function(a, b) return a.total > b.total end)
 
-    -- Display contacts (by main character)
-    for main, _ in pairs(mainChars) do
-        -- Calculate group pending total
-        local groupTotal = Hacienda:GetGroupPending(main)
-        
-        -- Only show contacts with group pending OS or unread messages
-        local hasUnread = false
-        local members = Hacienda:GetGroupMembers(main)
-        for _, member in ipairs(members) do
-            if Hacienda.unreadCounts[member] and Hacienda.unreadCounts[member] > 0 then
-                hasUnread = true
-                break
-            end
+    -- Display sorted contacts
+    for _, entry in ipairs(sortedContacts) do
+        local main = entry.main
+        local groupTotal = entry.total
+        local members = self:GetGroupMembers(main)
+        local displayName = main
+        local memberString = ""
+        if table.getn(members) > 1 then
+            table.sort(members)
+            memberString = table.concat(members, ", ")
+            displayName = main .. " (" .. (table.getn(members) - 1) .. " alts)"
         end
-        
-        if groupTotal > 0 or hasUnread then
-            local contactFrame = Hacienda:GetContactFrame()
-            contactFrame:SetPoint("TOPLEFT", Hacienda.contactList, "TOPLEFT", 5, yOffset)
-            
-            -- Format the group total if it exists
-            local pendingParts = {}
-            if groupTotal > 0 then
-                local gold = floor(groupTotal / (COPPER_PER_SILVER * SILVER_PER_GOLD))
-                local silver = floor((groupTotal - (gold * COPPER_PER_SILVER * SILVER_PER_GOLD)) / COPPER_PER_SILVER)
-                local copper = mod(groupTotal, COPPER_PER_SILVER)
-                
-                if gold > 0 then 
-                    table.insert(pendingParts, "|cFFFFFF00"..gold.."g|r") -- Gold color
-                end
-                if silver > 0 then 
-                    table.insert(pendingParts, "|cFFC0C0C0"..silver.."s|r") -- Silver color
-                end
-                if copper > 0 then 
-                    table.insert(pendingParts, "|cFFEDA55F"..copper.."c|r") -- Copper color
-                end
+
+        local gold = floor(groupTotal / (COPPER_PER_SILVER * SILVER_PER_GOLD))
+        local silver = floor((groupTotal - (gold * COPPER_PER_SILVER * SILVER_PER_GOLD)) / COPPER_PER_SILVER)
+        local copper = mod(groupTotal, COPPER_PER_SILVER)
+        local amountText = ""
+        if gold > 0 then amountText = amountText .. gold .. "g " end
+        if silver > 0 then amountText = amountText .. silver .. "s " end
+        if copper > 0 then amountText = amountText .. copper .. "c" end
+
+        local contactFrame = Hacienda:GetContactFrame()
+        contactFrame:SetPoint("TOPLEFT", Hacienda.contactList, "TOPLEFT", 5, yOffset)
+        contactFrame.text:SetText(displayName .. " - " .. amountText)
+        contactFrame.statusIcon:SetText("•")
+        contactFrame.statusIcon:SetTextColor(1, 0, 0) -- Red for debtors
+        contactFrame.text:SetTextColor(1, 1, 1)
+        contactFrame.contactName = main
+        contactFrame:SetScript("OnMouseDown", function() Hacienda:SelectContact(main) end)
+        contactFrame:SetScript("OnEnter", function()
+            this.text:SetTextColor(1, 0.82, 0)
+            GameTooltip:SetOwner(this, "ANCHOR_RIGHT")
+            GameTooltip:SetText(displayName)
+            GameTooltip:AddLine("Pending OS: " .. amountText, 1, 0, 0)
+            if memberString ~= "" then
+                GameTooltip:AddLine("Group Members: " .. memberString, 1, 1, 1)
             end
             
-            -- Combine contact name, unread count, and group total
-            local displayText = main
+            -- List individual OS records
+            GameTooltip:AddLine("\nOS Records:")
+            local hasRecords = false
             for _, member in ipairs(members) do
-                if Hacienda.unreadCounts[member] and Hacienda.unreadCounts[member] > 0 then
-                    displayText = displayText .. " |cffff80ff[" .. Hacienda.unreadCounts[member] .. "]|r"
-                    break
-                end
-            end
-            
-            if table.getn(pendingParts) > 0 then
-                displayText = displayText .. " (" .. table.concat(pendingParts, " ") .. ")"
-            end
-            
-            contactFrame.text:SetText(displayText)
-            contactFrame.statusIcon:SetText("•")
-            
-            -- Set color based on status: red for unpaid, yellow for partially paid, green for no OS
-            local hasPartialPayments = false
-            for _, member in ipairs(members) do
-                local msgs = Hacienda.conversations[member]
-                if msgs then
-                    for _, msg in ipairs(msgs) do
-                        if msg.outgoing and msg.moneyAmount and (not msg.paymentTime) and (msg.paidAmount or 0) > 0 then
-                            hasPartialPayments = true
-                            break
-                        end
-                    end
-                    if hasPartialPayments then break end
-                end
-            end
-            
-            if groupTotal > 0 then
-                if hasPartialPayments then
-                    contactFrame.statusIcon:SetTextColor(1, 1, 0) -- Yellow for partially paid
-                else
-                    contactFrame.statusIcon:SetTextColor(1, 0, 0) -- Red for unpaid
-                end
-            else
-                contactFrame.statusIcon:SetTextColor(0, 1, 0) -- Green for no OS
-            end
-            
-            contactFrame.text:SetTextColor(1, 1, 1)
-            contactFrame.contactName = main
-            contactFrame:SetScript("OnMouseDown", function() Hacienda:SelectContact(this.contactName) end)
-            contactFrame:SetScript("OnEnter", function() 
-                this.text:SetTextColor(1, 0.82, 0)
-                
-                -- Show tooltip with detailed OS information for group
-                GameTooltip:SetOwner(this, "ANCHOR_RIGHT")
-                
-                local contactName = this.contactName or "Unknown"
-                GameTooltip:SetText(contactName)
-                
-                local members = Hacienda:GetGroupMembers(contactName)
-                local groupTotal = Hacienda:GetGroupPending(contactName)
-                
-                if table.getn(members) > 1 then
-                    local linkedList = table.concat(members, ", ")
-                    GameTooltip:AddLine("Linked characters: " .. linkedList, 1, 1, 0)
-                end
-                
-                if groupTotal > 0 then
-                    GameTooltip:AddLine("Group Pending OS:", 0.8, 0.8, 0.8)
-                    
-                    for _, member in ipairs(members) do
-                        GameTooltip:AddLine(member .. ":", 0.8, 0.8, 1)
-                        if Hacienda.conversations[member] then
-                            for _, msg in ipairs(Hacienda.conversations[member]) do
-                                if msg.outgoing and msg.moneyAmount and (not msg.paymentTime) then
-                                    local remaining = msg.moneyAmount - (msg.paidAmount or 0)
-                                    if remaining > 0 then
-                                        local gold = floor(remaining / (COPPER_PER_SILVER * SILVER_PER_GOLD))
-                                        local silver = floor((remaining - (gold * COPPER_PER_SILVER * SILVER_PER_GOLD)) / COPPER_PER_SILVER)
-                                        local copper = mod(remaining, COPPER_PER_SILVER)
-                                        
-                                        local amountText = ""
-                                        if gold > 0 then amountText = amountText .. gold .. "g " end
-                                        if silver > 0 then amountText = amountText .. silver .. "s " end
-                                        if copper > 0 then amountText = amountText .. copper .. "c" end
-                                        
-                                        local paidText = ""
-                                        if msg.paidAmount and msg.paidAmount > 0 then
-                                            local paidGold = floor(msg.paidAmount / (COPPER_PER_SILVER * SILVER_PER_GOLD))
-                                            local paidSilver = floor((msg.paidAmount - (paidGold * COPPER_PER_SILVER * SILVER_PER_GOLD)) / COPPER_PER_SILVER)
-                                            local paidCopper = mod(msg.paidAmount, COPPER_PER_SILVER)
-                                            
-                                            paidText = " (Paid: "
-                                            if paidGold > 0 then paidText = paidText .. paidGold .. "g " end
-                                            if paidSilver > 0 then paidText = paidText .. paidSilver .. "s " end
-                                            if paidCopper > 0 then paidText = paidText .. paidCopper .. "c" end
-                                            paidText = paidText .. ")"
-                                        end
-                                        
-                                        GameTooltip:AddLine("  " .. amountText .. paidText, 1, 1, 1)
-                                    end
+                if Hacienda.conversations[member] then
+                    for _, msg in ipairs(Hacienda.conversations[member]) do
+                        if msg.outgoing and msg.moneyAmount then
+                            local remaining = msg.moneyAmount - (msg.paidAmount or 0)
+                            if remaining > 0 then
+                                hasRecords = true
+                                local remGold = floor(remaining / (COPPER_PER_SILVER * SILVER_PER_GOLD))
+                                local remSilver = floor((remaining - (remGold * COPPER_PER_SILVER * SILVER_PER_GOLD)) / COPPER_PER_SILVER)
+                                local remCopper = mod(remaining, COPPER_PER_SILVER)
+                                local remText = ""
+                                if remGold > 0 then remText = remText .. remGold .. "g " end
+                                if remSilver > 0 then remText = remText .. remSilver .. "s " end
+                                if remCopper > 0 then remText = remText .. remCopper .. "c" end
+                                
+                                local paidText = ""
+                                if msg.paidAmount and msg.paidAmount > 0 then
+                                    local paidGold = floor(msg.paidAmount / (COPPER_PER_SILVER * SILVER_PER_GOLD))
+                                    local paidSilver = floor((msg.paidAmount - (paidGold * COPPER_PER_SILVER * SILVER_PER_GOLD)) / COPPER_PER_SILVER)
+                                    local paidCopper = mod(msg.paidAmount, COPPER_PER_SILVER)
+                                    
+                                    paidText = " (Paid: "
+                                    if paidGold > 0 then paidText = paidText .. paidGold .. "g " end
+                                    if paidSilver > 0 then paidText = paidText .. paidSilver .. "s " end
+                                    if paidCopper > 0 then paidText = paidText .. paidCopper .. "c" end
+                                    paidText = paidText .. ")"
                                 end
+                                
+                                GameTooltip:AddLine("  " .. remText .. paidText, 1, 1, 1)
                             end
-                        else
-                            GameTooltip:AddLine("  No OS records found", 1, 0.5, 0.5)
                         end
                     end
-                    
-                    -- Add total line
-                    local totalGold = floor(groupTotal / (COPPER_PER_SILVER * SILVER_PER_GOLD))
-                    local totalSilver = floor((groupTotal - (totalGold * COPPER_PER_SILVER * SILVER_PER_GOLD)) / COPPER_PER_SILVER)
-                    local totalCopper = mod(groupTotal, COPPER_PER_SILVER)
-                    
-                    local totalText = "Group Total: "
-                    if totalGold > 0 then totalText = totalText .. totalGold .. "g " end
-                    if totalSilver > 0 then totalText = totalText .. totalSilver .. "s " end
-                    if totalCopper > 0 then totalText = totalText .. totalCopper .. "c" end
-                    
-                    GameTooltip:AddLine(" ")
-                    GameTooltip:AddLine(totalText, 0, 1, 0)
-                else
-                    GameTooltip:AddLine("No pending OS", 0.5, 1, 0.5)
                 end
-                
-                GameTooltip:Show()
-            end)
-            contactFrame:SetScript("OnLeave", function() 
-                this.text:SetTextColor(1, 1, 1)
-                GameTooltip:Hide()
-            end)
-            -- Add right-click functionality (deletes conversation and debt)
-            contactFrame:RegisterForClicks("LeftButtonUp", "RightButtonUp")
-            contactFrame:SetScript("OnClick", function()
-                if arg1 == "RightButton" then
-                    Hacienda:DeleteConversation(this.contactName)
-                elseif arg1 == "LeftButton" and IsShiftKeyDown() then
-                    Hacienda:WhisperDebtReminder(this.contactName)
-                end
-            end)
-            table.insert(Hacienda.activeContactFrames, contactFrame)
-            yOffset = yOffset - 18
-        end
+            end
+            if not hasRecords then
+                GameTooltip:AddLine("  No OS records found", 1, 0.5, 0.5)
+            end
+            
+            -- Add total line
+            local totalText = "Group Total: " .. amountText
+            GameTooltip:AddLine("\n" .. totalText, 0, 1, 0)
+            GameTooltip:Show()
+        end)
+        contactFrame:SetScript("OnLeave", function() 
+            this.text:SetTextColor(1, 1, 1)
+            GameTooltip:Hide()
+        end)
+        -- Add right-click functionality (deletes conversation and debt)
+        contactFrame:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+        contactFrame:SetScript("OnClick", function()
+            if arg1 == "RightButton" then
+                Hacienda:DeleteConversation(this.contactName)
+            elseif arg1 == "LeftButton" and IsShiftKeyDown() then
+                Hacienda:WhisperDebtReminder(this.contactName)
+            end
+        end)
+        table.insert(Hacienda.activeContactFrames, contactFrame)
+        yOffset = yOffset - 18
     end
     
     Hacienda.contactList:SetHeight(math.abs(yOffset) + 20)
@@ -1325,55 +1305,6 @@ function Hacienda:UpdateContactList()
     Hacienda:UpdateTotalDebtDisplay()
 end
 
-function Hacienda:DeleteConversation(contactName)
-    if not contactName or contactName == GUILD_BANK_CONTACT or contactName == PAID_OS_CONTACT then
-        return
-    end
-    
-    -- Get group members and delete conversation-related data
-    local members = Hacienda:GetGroupMembers(contactName)
-    for _, member in ipairs(members) do
-        -- Remove from conversations
-        if Hacienda.conversations[member] then
-            Hacienda.conversations[member] = nil
-        end
-        
-        -- Remove from pending totals (force-clear debt)
-        if Hacienda.pendingTotals[member] then
-            Hacienda.pendingTotals[member] = nil
-        end
-        
-        -- Remove from unread counts
-        if Hacienda.unreadCounts[member] then
-            Hacienda.unreadCounts[member] = nil
-        end
-        
-        -- Remove from paid conversations
-        if Hacienda.paidConversations[member] then
-            Hacienda.paidConversations[member] = nil
-        end
-    end
-    
-    -- Remove debt information from guild notes
-    Hacienda:RemoveDebtFromGuildNote(contactName)
-    
-    -- If this was the selected contact, clear the chat history
-    if Hacienda.selectedContact == contactName then
-        Hacienda.selectedContact = nil
-        if Hacienda.chatHistory then
-            Hacienda.chatHistory:Clear()
-        end
-        if Hacienda.chatTitle then
-            Hacienda.chatTitle:SetText("Historial de conversaciones")
-        end
-    end
-    
-    -- Update the contact list and total debt
-    Hacienda:UpdateContactList()
-    Hacienda:UpdateTotalDebtDisplay()
-    
-    DEFAULT_CHAT_FRAME:AddMessage("|cffffffff[|cff00ff00Hacienda|cffffffff]|r Conversation group with " .. contactName .. " deleted (debt cleared, links preserved).")
-end
 -- New function to whisper debt reminder to player
 function Hacienda:WhisperDebtReminder(playerName)
     if not playerName or playerName == GUILD_BANK_CONTACT or playerName == PAID_OS_CONTACT then
@@ -1398,7 +1329,7 @@ function Hacienda:WhisperDebtReminder(playerName)
     if silver > 0 then amountText = amountText .. silver .. "s " end
     if copper > 0 then amountText = amountText .. copper .. "c" end
     
-    local message = string.format("Recordatorio: Tienes %s de OS pendiente por pagar a la hermandad. Por favor deposita en el banco de la hermandad cuando te sea conveniente. Â¡Gracias!", amountText)
+    local message = string.format("Recordatorio: Tienes %s de OS pendiente por pagar a la hermandad. Por favor deposita en el banco de la hermandad cuando te sea conveniente. ¡Gracias!", amountText)
     
     -- Set the chat box to whisper mode and populate it
     if ChatFrame1EditBox then
@@ -2365,22 +2296,22 @@ function Hacienda:ShowLinkedCharactersFrame()
         table.sort(sortedLinks, function(a, b) return a.alt < b.alt end)
 
         for _, link in ipairs(sortedLinks) do
-            local textFrame = CreateFrame("Button", nil, self.linkedCharactersFrame.content) -- Changed to Button instead of Frame
+            local textFrame = CreateFrame("Button", nil, self.linkedCharactersFrame.content)
             textFrame:SetWidth(220)
             textFrame:SetHeight(lineHeight)
             textFrame:SetPoint("TOPLEFT", self.linkedCharactersFrame.content, "TOPLEFT", 10, yOffset)
             
-            -- CRITICAL: Properly set up the button to capture clicks
+            -- Set up the button to capture clicks
             textFrame:RegisterForClicks("LeftButtonUp", "RightButtonUp")
             textFrame:SetScript("OnClick", function(self, button)
                 if button == "RightButton" then
-                    -- Create a simple confirmation dialog instead of using ShowTextPopup
+                    -- Confirmation dialog
                     StaticPopupDialogs["HACIENDA_UNLINK_CONFIRM"] = {
                         text = "Are you sure you want to unlink %s from %s?",
                         button1 = "Yes",
                         button2 = "No",
                         OnAccept = function()
-                            Hacienda:UnlinkCharacter(link.alt)
+                            Hacienda:UnlinkCharacters(nil, link.alt)
                             Hacienda:ShowLinkedCharactersFrame() -- Refresh the frame
                         end,
                         timeout = 0,
@@ -2407,34 +2338,6 @@ function Hacienda:ShowLinkedCharactersFrame()
 
     self.linkedCharactersFrame.content:SetHeight(math.abs(yOffset))
     self.linkedCharactersFrame:Show()
-end
-
-function Hacienda:UnlinkCharacters(main, alt)
-    main = Hacienda:Trim(main or "")
-    alt = Hacienda:Trim(alt or "")
-
-    if alt ~= "" and Hacienda.linkedChars[alt] then
-        -- Remove only the specific alt link
-        Hacienda.linkedChars[alt] = nil
-        DEFAULT_CHAT_FRAME:AddMessage("|cffffffff[|cff00ff00Hacienda|cffffffff]|r Unlinked " .. alt .. " from " .. (main ~= "" and main or "its main"))
-    elseif main ~= "" then
-        -- If only main is provided, remove all alts pointing to it
-        local removed = false
-        for c, m in pairs(Hacienda.linkedChars) do
-            if m == main then
-                Hacienda.linkedChars[c] = nil
-                DEFAULT_CHAT_FRAME:AddMessage("|cffffffff[|cff00ff00Hacienda|cffffffff]|r Unlinked " .. c .. " from " .. main)
-                removed = true
-            end
-        end
-        if not removed then
-            DEFAULT_CHAT_FRAME:AddMessage("|cffffffff[|cff00ff00Hacienda|cffffffff]|r No alts linked to " .. main)
-        end
-    else
-        DEFAULT_CHAT_FRAME:AddMessage("|cffffffff[|cff00ff00Hacienda|cffffffff]|r Please enter a Main and/or Alt to unlink.")
-    end
-
-    Hacienda:UpdateContactList()
 end
 
 -- Slash command to show linked characters frame
