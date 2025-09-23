@@ -925,6 +925,17 @@ function Hacienda:CreateFrame()
         Hacienda.linkMainInput:SetText("")
         Hacienda.linkAltInput:SetText("")
     end)
+	local unlinkButton = CreateFrame("Button", nil, debtEntryFrame, "UIPanelButtonTemplate")
+	unlinkButton:SetWidth(80 * Hacienda.scaleFactor)
+	unlinkButton:SetHeight(20 * Hacienda.scaleFactor)
+	unlinkButton:SetPoint("TOPLEFT", Hacienda.linkAltInput, "BOTTOMLEFT", 0, -5 * Hacienda.scaleFactor)
+	unlinkButton:SetText("Unlink")
+	unlinkButton:SetScript("OnClick", function()
+		Hacienda:UnlinkCharacters(Hacienda.linkMainInput:GetText(), Hacienda.linkAltInput:GetText())
+		Hacienda.linkMainInput:SetText("")
+		Hacienda.linkAltInput:SetText("")
+	end)
+
     Hacienda.linkAltInput:SetScript("OnEscapePressed", function() Hacienda.linkAltInput:ClearFocus() end)
 end
 
@@ -2290,6 +2301,148 @@ function Hacienda:ShowImportExportFrame(mode)
     end
 end
 
+function Hacienda:ShowLinkedCharactersFrame()
+    if not self.linkedCharactersFrame then
+        local f = CreateFrame("Frame", "HaciendaLinkedCharactersFrame", UIParent)
+        f:SetWidth(300)
+        f:SetHeight(300)
+        f:SetPoint("CENTER", UIParent, "CENTER", 0, 0)
+        f:SetFrameStrata("DIALOG")
+        f:SetToplevel(true)
+        f:SetBackdrop({
+            bgFile = "Interface\\ChatFrame\\ChatFrameBackground",
+            edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+            tile = true, tileSize = 16, edgeSize = 12,
+            insets = { left = 3, right = 3, top = 3, bottom = 3 }
+        })
+        f:SetBackdropColor(0, 0, 0, 0.8)
+        f:SetBackdropBorderColor(0.6, 0.6, 0.6)
+
+        -- Title
+        local title = f:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+        title:SetPoint("TOP", f, "TOP", 0, -10)
+        title:SetText("Linked Characters")
+
+        -- Scroll Frame
+        local scroll = CreateFrame("ScrollFrame", "HaciendaLinkedCharactersScroll", f, "UIPanelScrollFrameTemplate")
+        scroll:SetPoint("TOPLEFT", f, "TOPLEFT", 15, -60)
+        scroll:SetPoint("BOTTOMRIGHT", f, "BOTTOMRIGHT", -35, 40)
+
+        local content = CreateFrame("Frame", nil, scroll)
+        content:SetWidth(250)
+        content:SetHeight(1)
+        scroll:SetScrollChild(content)
+        f.content = content
+
+        -- Close Button
+        local closeBtn = CreateFrame("Button", nil, f, "UIPanelCloseButton")
+        closeBtn:SetPoint("TOPRIGHT", f, "TOPRIGHT")
+
+        f:Hide()
+        self.linkedCharactersFrame = f
+    end
+
+    -- Clear previous content
+    for _, child in ipairs({self.linkedCharactersFrame.content:GetChildren()}) do
+        child:Hide()
+        child:SetParent(nil)
+    end
+
+    -- Populate linked characters
+    local yOffset = 0
+    local lineHeight = 20
+    if not Hacienda.linkedChars or next(Hacienda.linkedChars) == nil then
+        local text = self.linkedCharactersFrame.content:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+        text:SetPoint("TOPLEFT", self.linkedCharactersFrame.content, "TOPLEFT", 10, yOffset)
+        text:SetText("No linked characters found.")
+        text:SetTextColor(1, 0.5, 0.5)
+        yOffset = yOffset - lineHeight
+    else
+        local sortedLinks = {}
+        for alt, main in pairs(Hacienda.linkedChars) do
+            table.insert(sortedLinks, {alt = alt, main = main})
+        end
+        table.sort(sortedLinks, function(a, b) return a.alt < b.alt end)
+
+        for _, link in ipairs(sortedLinks) do
+            local textFrame = CreateFrame("Button", nil, self.linkedCharactersFrame.content) -- Changed to Button instead of Frame
+            textFrame:SetWidth(220)
+            textFrame:SetHeight(lineHeight)
+            textFrame:SetPoint("TOPLEFT", self.linkedCharactersFrame.content, "TOPLEFT", 10, yOffset)
+            
+            -- CRITICAL: Properly set up the button to capture clicks
+            textFrame:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+            textFrame:SetScript("OnClick", function(self, button)
+                if button == "RightButton" then
+                    -- Create a simple confirmation dialog instead of using ShowTextPopup
+                    StaticPopupDialogs["HACIENDA_UNLINK_CONFIRM"] = {
+                        text = "Are you sure you want to unlink %s from %s?",
+                        button1 = "Yes",
+                        button2 = "No",
+                        OnAccept = function()
+                            Hacienda:UnlinkCharacter(link.alt)
+                            Hacienda:ShowLinkedCharactersFrame() -- Refresh the frame
+                        end,
+                        timeout = 0,
+                        whileDead = true,
+                        hideOnEscape = true,
+                        preferredIndex = 3,
+                    }
+                    StaticPopup_Show("HACIENDA_UNLINK_CONFIRM", link.alt, link.main)
+                end
+            end)
+            
+            -- Add highlight texture for better UX
+            textFrame:SetHighlightTexture("Interface\\QuestFrame\\UI-QuestTitleHighlight")
+            
+            local textString = textFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+            textString:SetPoint("LEFT", textFrame, "LEFT", 0, 0)
+            textString:SetText(string.format("%s -> %s", link.alt, link.main))
+            textString:SetTextColor(1, 1, 1)
+            textString:SetWidth(200)
+
+            yOffset = yOffset - lineHeight
+        end
+    end
+
+    self.linkedCharactersFrame.content:SetHeight(math.abs(yOffset))
+    self.linkedCharactersFrame:Show()
+end
+
+function Hacienda:UnlinkCharacters(main, alt)
+    main = Hacienda:Trim(main or "")
+    alt = Hacienda:Trim(alt or "")
+
+    if alt ~= "" and Hacienda.linkedChars[alt] then
+        -- Remove only the specific alt link
+        Hacienda.linkedChars[alt] = nil
+        DEFAULT_CHAT_FRAME:AddMessage("|cffffffff[|cff00ff00Hacienda|cffffffff]|r Unlinked " .. alt .. " from " .. (main ~= "" and main or "its main"))
+    elseif main ~= "" then
+        -- If only main is provided, remove all alts pointing to it
+        local removed = false
+        for c, m in pairs(Hacienda.linkedChars) do
+            if m == main then
+                Hacienda.linkedChars[c] = nil
+                DEFAULT_CHAT_FRAME:AddMessage("|cffffffff[|cff00ff00Hacienda|cffffffff]|r Unlinked " .. c .. " from " .. main)
+                removed = true
+            end
+        end
+        if not removed then
+            DEFAULT_CHAT_FRAME:AddMessage("|cffffffff[|cff00ff00Hacienda|cffffffff]|r No alts linked to " .. main)
+        end
+    else
+        DEFAULT_CHAT_FRAME:AddMessage("|cffffffff[|cff00ff00Hacienda|cffffffff]|r Please enter a Main and/or Alt to unlink.")
+    end
+
+    Hacienda:UpdateContactList()
+end
+
+-- Slash command to show linked characters frame
+SLASH_HACIENDALINKS1 = "/hclinks"
+SlashCmdList["HACIENDALINKS"] = function()
+    Hacienda:ShowLinkedCharactersFrame()
+end
+
 -- New function to show link frame
 function Hacienda:ShowLinkFrame()
     if not self.linkFrame then
@@ -2402,4 +2555,32 @@ function Hacienda:LinkCharacters(main, alt)
     if self.frame and self.frame:IsVisible() then
         self:UpdateContactList()
     end
+end
+
+function Hacienda:UnlinkCharacters(main, alt)
+    main = Hacienda:Trim(main or "")
+    alt = Hacienda:Trim(alt or "")
+
+    if alt ~= "" and Hacienda.linkedChars[alt] then
+        -- Remove only this alt from its main
+        Hacienda.linkedChars[alt] = nil
+        DEFAULT_CHAT_FRAME:AddMessage("|cffffffff[|cff00ff00Hacienda|cffffffff]|r Unlinked " .. alt .. " from " .. (main ~= "" and main or "its main"))
+    elseif main ~= "" then
+        -- Remove all alts pointing to this main
+        local removed = false
+        for c, m in pairs(Hacienda.linkedChars) do
+            if m == main then
+                Hacienda.linkedChars[c] = nil
+                DEFAULT_CHAT_FRAME:AddMessage("|cffffffff[|cff00ff00Hacienda|cffffffff]|r Unlinked " .. c .. " from " .. main)
+                removed = true
+            end
+        end
+        if not removed then
+            DEFAULT_CHAT_FRAME:AddMessage("|cffffffff[|cff00ff00Hacienda|cffffffff]|r No alts linked to " .. main)
+        end
+    else
+        DEFAULT_CHAT_FRAME:AddMessage("|cffffffff[|cff00ff00Hacienda|cffffffff]|r Please enter a Main and/or Alt to unlink.")
+    end
+
+    Hacienda:UpdateContactList()
 end
