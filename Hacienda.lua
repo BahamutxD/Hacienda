@@ -649,12 +649,12 @@ end
 function Hacienda:CreateFrame()
     if Hacienda.frame then return end
     local scaleFactor = 1.10
-    Hacienda.scaleFactor = scaleFactor -- Ensure global access
+    Hacienda.scaleFactor = scaleFactor
 
     -- Main Frame
     local frame = CreateFrame("Frame", "HaciendaFrame", UIParent)
     frame:SetWidth(590 * Hacienda.scaleFactor)
-    frame:SetHeight(445 * Hacienda.scaleFactor)
+    frame:SetHeight(450 * Hacienda.scaleFactor)
     frame:SetPoint("CENTER", UIParent, "CENTER", 0, 0)
     frame:SetFrameStrata("MEDIUM")
     frame:SetToplevel(true)
@@ -670,7 +670,7 @@ function Hacienda:CreateFrame()
     frame:EnableMouse(true)
     frame:SetScript("OnMouseDown", function() frame:StartMoving(); frame:SetFrameStrata("HIGH") end)
     frame:SetScript("OnMouseUp", function() frame:StopMovingOrSizing() end)
-    frame:Hide()
+    frame:Show() -- Ensure main frame is visible
     Hacienda.frame = frame
 
     -- Initialize tables if they don't exist
@@ -694,11 +694,11 @@ function Hacienda:CreateFrame()
     Hacienda.totalDebtText:SetText("Deuda Total: 0g 0s 0c")
     Hacienda.totalDebtText:SetTextColor(1, 0.5, 0.5)
 
-    -- Contact Frame (Deudores)
+    -- Contact Frame
     local contactFrame = CreateFrame("Frame", nil, frame)
     contactFrame:SetWidth(170 * Hacienda.scaleFactor)
     contactFrame:SetHeight(250 * Hacienda.scaleFactor)
-    contactFrame:SetPoint("TOPLEFT", frame, "TOPLEFT", 10 * Hacienda.scaleFactor, -70 * Hacienda.scaleFactor) -- Moved down from -50
+    contactFrame:SetPoint("TOPLEFT", frame, "TOPLEFT", 10 * Hacienda.scaleFactor, -70 * Hacienda.scaleFactor)
     contactFrame:SetBackdrop({
         bgFile = "Interface\\ChatFrame\\ChatFrameBackground",
         edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
@@ -717,12 +717,12 @@ function Hacienda:CreateFrame()
     contactScroll:SetPoint("BOTTOMRIGHT", contactFrame, "BOTTOMRIGHT", -5 * Hacienda.scaleFactor, 5 * Hacienda.scaleFactor)
 
     local contactContent = CreateFrame("Frame", nil, contactScroll)
-    contactContent:SetWidth(130 * Hacienda.scaleFactor) -- Adjusted for padding
+    contactContent:SetWidth(130 * Hacienda.scaleFactor)
     contactContent:SetHeight(1)
     contactScroll:SetScrollChild(contactContent)
     Hacienda.contactList = contactContent
 
-    -- Chat Frame (Historial de conversaciones)
+    -- Chat Frame
     local chatFrame = CreateFrame("Frame", nil, frame)
     chatFrame:SetWidth(390 * Hacienda.scaleFactor)
     chatFrame:SetHeight(250 * Hacienda.scaleFactor)
@@ -751,7 +751,7 @@ function Hacienda:CreateFrame()
     -- Data Sync Panel
     local syncFrame = CreateFrame("Frame", nil, frame)
     syncFrame:SetWidth(170 * Hacienda.scaleFactor)
-    syncFrame:SetHeight(100 * Hacienda.scaleFactor)
+    syncFrame:SetHeight(110 * Hacienda.scaleFactor)
     syncFrame:SetPoint("TOPLEFT", contactFrame, "BOTTOMLEFT", 0, -10 * Hacienda.scaleFactor)
     syncFrame:SetBackdrop({
         bgFile = "Interface\\ChatFrame\\ChatFrameBackground",
@@ -783,7 +783,7 @@ function Hacienda:CreateFrame()
     -- Debt Entry Frame (Deuda Manual)
     local debtEntryFrame = CreateFrame("Frame", nil, frame)
     debtEntryFrame:SetWidth(390 * Hacienda.scaleFactor)
-    debtEntryFrame:SetHeight(100 * Hacienda.scaleFactor)
+    debtEntryFrame:SetHeight(110 * Hacienda.scaleFactor)
     debtEntryFrame:SetPoint("TOPLEFT", chatFrame, "BOTTOMLEFT", 0, -10 * Hacienda.scaleFactor)
     debtEntryFrame:SetBackdrop({
         bgFile = "Interface\\ChatFrame\\ChatFrameBackground",
@@ -793,13 +793,15 @@ function Hacienda:CreateFrame()
     })
     debtEntryFrame:SetBackdropColor(0, 0, 0, 0.7)
     debtEntryFrame:SetBackdropBorderColor(0.6, 0.6, 0.6)
+    debtEntryFrame:Show() -- Ensure debtEntryFrame is visible
 
     local manualDebtTitle = debtEntryFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     manualDebtTitle:SetPoint("TOPLEFT", debtEntryFrame, "TOPLEFT", 10 * Hacienda.scaleFactor, -10 * Hacienda.scaleFactor)
     manualDebtTitle:SetText("Deuda Manual")
 
+    -- Player input
     local playerLabel = debtEntryFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    playerLabel:SetPoint("TOPLEFT", debtEntryFrame, "TOPLEFT", 10 * Hacienda.scaleFactor, -35* Hacienda.scaleFactor)
+    playerLabel:SetPoint("TOPLEFT", debtEntryFrame, "TOPLEFT", 10 * Hacienda.scaleFactor, -35 * Hacienda.scaleFactor)
     playerLabel:SetText("Personaje:")
 
     local playerBox = CreateFrame("Frame", nil, debtEntryFrame)
@@ -814,6 +816,7 @@ function Hacienda:CreateFrame()
     })
     playerBox:SetBackdropColor(0, 0, 0, 0.75)
     playerBox:SetBackdropBorderColor(0.5, 0.5, 0.5)
+    playerBox:Show()
 
     Hacienda.debtPlayerInput = CreateFrame("EditBox", nil, playerBox)
     Hacienda.debtPlayerInput:SetPoint("TOPLEFT", playerBox, "TOPLEFT", 5, -3)
@@ -821,18 +824,11 @@ function Hacienda:CreateFrame()
     Hacienda.debtPlayerInput:SetAutoFocus(false)
     Hacienda.debtPlayerInput:SetFontObject("GameFontNormalSmall")
     Hacienda.debtPlayerInput:SetTextInsets(0, 0, 0, 0)
-    Hacienda.debtPlayerInput:SetScript("OnTabPressed", function() Hacienda.debtAmountInput:SetFocus() end)
-    Hacienda.debtPlayerInput:SetScript("OnEscapePressed", function() Hacienda.debtPlayerInput:ClearFocus() end)
-    Hacienda.debtPlayerInput:SetScript("OnEnter", function()
-        GameTooltip:SetOwner(this, "ANCHOR_TOP")
-        GameTooltip:SetText("Ingresa el nombre del jugador")
-        GameTooltip:AddLine("Ingresa el nombre exacto del jugador (e.g., 'Culin').", 1, 1, 1, true)
-        GameTooltip:Show()
-    end)
-    Hacienda.debtPlayerInput:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    Hacienda.debtPlayerInput:Show()
 
+    -- Amount input
     local amountLabel = debtEntryFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    amountLabel:SetPoint("LEFT", playerBox, "RIGHT", 15 * Hacienda.scaleFactor, -0)
+    amountLabel:SetPoint("LEFT", playerBox, "RIGHT", 15 * Hacienda.scaleFactor, 0)
     amountLabel:SetText("Cantidad:")
 
     local amountBox = CreateFrame("Frame", nil, debtEntryFrame)
@@ -847,6 +843,7 @@ function Hacienda:CreateFrame()
     })
     amountBox:SetBackdropColor(0, 0, 0, 0.75)
     amountBox:SetBackdropBorderColor(0.5, 0.5, 0.5)
+    amountBox:Show()
 
     Hacienda.debtAmountInput = CreateFrame("EditBox", nil, amountBox)
     Hacienda.debtAmountInput:SetPoint("TOPLEFT", amountBox, "TOPLEFT", 5, -3)
@@ -854,80 +851,144 @@ function Hacienda:CreateFrame()
     Hacienda.debtAmountInput:SetAutoFocus(false)
     Hacienda.debtAmountInput:SetFontObject("GameFontNormalSmall")
     Hacienda.debtAmountInput:SetTextInsets(0, 0, 0, 0)
-    Hacienda.debtAmountInput:SetScript("OnEnterPressed", function() Hacienda:AddManualDebtEntry() end)
-    Hacienda.debtAmountInput:SetScript("OnEscapePressed", function() Hacienda.debtAmountInput:ClearFocus() end)
-    Hacienda.debtAmountInput:SetScript("OnEnter", function()
-        GameTooltip:SetOwner(this, "ANCHOR_TOP")
-        GameTooltip:SetText("Ingresa la cantidad de deuda")
-        GameTooltip:AddLine("Ingresa la cantidad en Gold, Silver, y/o Copper (e.g., '10g 5s 2c', '5g', o '50s').", 1, 1, 1, true)
-        GameTooltip:Show()
-    end)
-    Hacienda.debtAmountInput:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    Hacienda.debtAmountInput:Show()
 
-    local function focusFX(edit, box)
-        if not edit or not box then return end
-        edit:SetScript("OnEditFocusGained", function() box:SetBackdropBorderColor(1, 0.82, 0) end)
-        edit:SetScript("OnEditFocusLost", function() box:SetBackdropBorderColor(0.5, 0.5, 0.5) end)
-    end
-    focusFX(Hacienda.debtPlayerInput, playerBox)
-    focusFX(Hacienda.debtAmountInput, amountBox)
-
-    -- Link Characters UI (horizontal layout, no button)
+    -- Link Characters UI
     local linkTitle = debtEntryFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     linkTitle:SetPoint("TOPLEFT", debtEntryFrame, "TOPLEFT", 10 * Hacienda.scaleFactor, -60 * Hacienda.scaleFactor)
     linkTitle:SetText("Link Characters")
+    linkTitle:Show()
+    -- Debug visibility of linkTitle
+    if not linkTitle:IsVisible() then
+        DEFAULT_CHAT_FRAME:AddMessage("|cffffffff[|cff00ff00Hacienda|cffffffff]|r Debug: linkTitle is not visible")
+    end
 
     local mainLabel = debtEntryFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    mainLabel:SetPoint("TOPLEFT", debtEntryFrame, "TOPLEFT", 10 * Hacienda.scaleFactor, -80* Hacienda.scaleFactor)
+    mainLabel:SetPoint("TOPLEFT", debtEntryFrame, "TOPLEFT", 10 * Hacienda.scaleFactor, -85 * Hacienda.scaleFactor)
     mainLabel:SetText("Main Char:")
+    mainLabel:Show()
 
-    Hacienda.linkMainInput = CreateFrame("EditBox", nil, debtEntryFrame)
-    Hacienda.linkMainInput:SetWidth(120 * Hacienda.scaleFactor)
-    Hacienda.linkMainInput:SetHeight(22 * Hacienda.scaleFactor)
-    Hacienda.linkMainInput:SetPoint("LEFT", mainLabel, "RIGHT", 5 * Hacienda.scaleFactor, 0)
+    local mainBox = CreateFrame("Frame", nil, debtEntryFrame)
+    mainBox:SetWidth(120 * Hacienda.scaleFactor)
+    mainBox:SetHeight(22 * Hacienda.scaleFactor)
+    mainBox:SetPoint("LEFT", mainLabel, "RIGHT", 5 * Hacienda.scaleFactor, 0)
+    mainBox:SetBackdrop({
+        bgFile = "Interface\\ChatFrame\\ChatFrameBackground",
+        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+        tile = true, tileSize = 16, edgeSize = 12,
+        insets = { left = 3, right = 3, top = 3, bottom = 3 }
+    })
+    mainBox:SetBackdropColor(0, 0, 0, 0.75)
+    mainBox:SetBackdropBorderColor(0.5, 0.5, 0.5)
+    mainBox:Show()
+    -- Debug visibility of mainBox
+    if not mainBox:IsVisible() then
+        DEFAULT_CHAT_FRAME:AddMessage("|cffffffff[|cff00ff00Hacienda|cffffffff]|r Debug: mainBox is not visible")
+    end
+
+    Hacienda.linkMainInput = CreateFrame("EditBox", nil, mainBox)
+    Hacienda.linkMainInput:SetPoint("TOPLEFT", mainBox, "TOPLEFT", 5, -3)
+    Hacienda.linkMainInput:SetPoint("BOTTOMRIGHT", mainBox, "BOTTOMRIGHT", -5, 3)
     Hacienda.linkMainInput:SetAutoFocus(false)
     Hacienda.linkMainInput:SetFontObject("GameFontNormalSmall")
-    Hacienda.linkMainInput:SetBackdrop({
-        bgFile = "Interface\\ChatFrame\\ChatFrameBackground",
-        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
-        tile = true, tileSize = 16, edgeSize = 12,
-        insets = { left = 3, right = 3, top = 3, bottom = 3 }
-    })
-    Hacienda.linkMainInput:SetBackdropColor(0, 0, 0, 0.75)
-    Hacienda.linkMainInput:SetBackdropBorderColor(0.5, 0.5, 0.5)
-    Hacienda.linkMainInput:SetScript("OnEnterPressed", function()
-        Hacienda:LinkCharacters(Hacienda.linkMainInput:GetText(), Hacienda.linkAltInput:GetText())
-        Hacienda.linkMainInput:SetText("")
-        Hacienda.linkAltInput:SetText("")
-    end)
-    Hacienda.linkMainInput:SetScript("OnEscapePressed", function() Hacienda.linkMainInput:ClearFocus() end)
+    Hacienda.linkMainInput:SetTextInsets(0, 0, 0, 0)
+    Hacienda.linkMainInput:Show()
+    -- Debug visibility of linkMainInput
+    if not Hacienda.linkMainInput:IsVisible() then
+        DEFAULT_CHAT_FRAME:AddMessage("|cffffffff[|cff00ff00Hacienda|cffffffff]|r Debug: linkMainInput is not visible")
+    end
 
     local altLabel = debtEntryFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    altLabel:SetPoint("LEFT", Hacienda.linkMainInput, "RIGHT", 15 * Hacienda.scaleFactor, 0)
+    altLabel:SetPoint("LEFT", mainBox, "RIGHT", 15 * Hacienda.scaleFactor, 0)
     altLabel:SetText("Alt Char:")
+    altLabel:Show()
 
-    Hacienda.linkAltInput = CreateFrame("EditBox", nil, debtEntryFrame)
-    Hacienda.linkAltInput:SetWidth(120 * Hacienda.scaleFactor)
-    Hacienda.linkAltInput:SetHeight(22 * Hacienda.scaleFactor)
-    Hacienda.linkAltInput:SetPoint("LEFT", altLabel, "RIGHT", 5 * Hacienda.scaleFactor, 0)
-    Hacienda.linkAltInput:SetAutoFocus(false)
-    Hacienda.linkAltInput:SetFontObject("GameFontNormalSmall")
-    Hacienda.linkAltInput:SetBackdrop({
+    local altBox = CreateFrame("Frame", nil, debtEntryFrame)
+    altBox:SetWidth(120 * Hacienda.scaleFactor)
+    altBox:SetHeight(22 * Hacienda.scaleFactor)
+    altBox:SetPoint("LEFT", altLabel, "RIGHT", 5 * Hacienda.scaleFactor, 0)
+    altBox:SetBackdrop({
         bgFile = "Interface\\ChatFrame\\ChatFrameBackground",
         edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
         tile = true, tileSize = 16, edgeSize = 12,
         insets = { left = 3, right = 3, top = 3, bottom = 3 }
     })
-    Hacienda.linkAltInput:SetBackdropColor(0, 0, 0, 0.75)
-    Hacienda.linkAltInput:SetBackdropBorderColor(0.5, 0.5, 0.5)
-    Hacienda.linkAltInput:SetScript("OnEnterPressed", function()
-        Hacienda:LinkCharacters(Hacienda.linkMainInput:GetText(), Hacienda.linkAltInput:GetText())
-        Hacienda.linkMainInput:SetText("")
-        Hacienda.linkAltInput:SetText("")
-    end)
+    altBox:SetBackdropColor(0, 0, 0, 0.75)
+    altBox:SetBackdropBorderColor(0.5, 0.5, 0.5)
+    altBox:Show()
+    -- Debug visibility of altBox
+    if not altBox:IsVisible() then
+        DEFAULT_CHAT_FRAME:AddMessage("|cffffffff[|cff00ff00Hacienda|cffffffff]|r Debug: altBox is not visible")
+    end
 
+    Hacienda.linkAltInput = CreateFrame("EditBox", nil, altBox)
+    Hacienda.linkAltInput:SetPoint("TOPLEFT", altBox, "TOPLEFT", 5, -3)
+    Hacienda.linkAltInput:SetPoint("BOTTOMRIGHT", altBox, "BOTTOMRIGHT", -5, 3)
+    Hacienda.linkAltInput:SetAutoFocus(false)
+    Hacienda.linkAltInput:SetFontObject("GameFontNormalSmall")
+    Hacienda.linkAltInput:SetTextInsets(0, 0, 0, 0)
+    Hacienda.linkAltInput:Show()
+    -- Debug visibility of linkAltInput
+    if not Hacienda.linkAltInput:IsVisible() then
+        DEFAULT_CHAT_FRAME:AddMessage("|cffffffff[|cff00ff00Hacienda|cffffffff]|r Debug: linkAltInput is not visible")
+    end
 
-    Hacienda.linkAltInput:SetScript("OnEscapePressed", function() Hacienda.linkAltInput:ClearFocus() end)
+    -- Focus + ESC/Enter/Tab behavior
+    local function focusFX(edit, box, onEnter, nextField)
+        if not edit or not box then
+            DEFAULT_CHAT_FRAME:AddMessage("|cffffffff[|cff00ff00Hacienda|cffffffff]|r Error: edit or box is nil in focusFX")
+            return
+        end
+        edit:SetScript("OnEditFocusGained", function()
+            box:SetBackdropBorderColor(1, 0.82, 0)
+        end)
+        edit:SetScript("OnEditFocusLost", function()
+            box:SetBackdropBorderColor(0.5, 0.5, 0.5)
+        end)
+        edit:SetScript("OnEscapePressed", function()
+            edit:ClearFocus()
+            edit:SetText("")
+        end)
+        if onEnter then
+            edit:SetScript("OnEnterPressed", function()
+                Hacienda:LinkCharacters(Hacienda.linkMainInput:GetText(), Hacienda.linkAltInput:GetText())
+                Hacienda.linkMainInput:SetText("")
+                Hacienda.linkAltInput:SetText("")
+                Hacienda.linkMainInput:ClearFocus()
+                Hacienda.linkAltInput:ClearFocus()
+            end)
+        end
+        if nextField then
+            edit:SetScript("OnTabPressed", function()
+                nextField:SetFocus()
+            end)
+        end
+    end
+
+    -- Debug checks for EditBox creation
+    if not Hacienda.debtPlayerInput then
+        DEFAULT_CHAT_FRAME:AddMessage("|cffffffff[|cff00ff00Hacienda|cffffffff]|r Error: debtPlayerInput is nil after creation")
+    end
+    if not Hacienda.debtAmountInput then
+        DEFAULT_CHAT_FRAME:AddMessage("|cffffffff[|cff00ff00Hacienda|cffffffff]|r Error: debtAmountInput is nil after creation")
+    end
+    if not Hacienda.linkMainInput then
+        DEFAULT_CHAT_FRAME:AddMessage("|cffffffff[|cff00ff00Hacienda|cffffffff]|r Error: linkMainInput is nil after creation")
+    end
+    if not Hacienda.linkAltInput then
+        DEFAULT_CHAT_FRAME:AddMessage("|cffffffff[|cff00ff00Hacienda|cffffffff]|r Error: linkAltInput is nil after creation")
+    end
+
+    -- Apply focusFX calls
+    focusFX(Hacienda.debtPlayerInput, playerBox, false, Hacienda.debtAmountInput)
+    focusFX(Hacienda.debtAmountInput, amountBox, false, Hacienda.linkMainInput)
+    focusFX(Hacienda.linkMainInput, mainBox, true, Hacienda.linkAltInput)
+    focusFX(Hacienda.linkAltInput, altBox, true, Hacienda.debtPlayerInput)
+
+    -- Debug frame visibility
+    if not debtEntryFrame:IsVisible() then
+        DEFAULT_CHAT_FRAME:AddMessage("|cffffffff[|cff00ff00Hacienda|cffffffff]|r Debug: debtEntryFrame is not visible")
+    end
 end
 
 function Hacienda:CreateMinimapButton()
