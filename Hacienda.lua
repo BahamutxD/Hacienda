@@ -858,10 +858,6 @@ function Hacienda:CreateFrame()
     linkTitle:SetPoint("TOPLEFT", debtEntryFrame, "TOPLEFT", 10 * Hacienda.scaleFactor, -60 * Hacienda.scaleFactor)
     linkTitle:SetText("Link Characters")
     linkTitle:Show()
-    -- Debug visibility of linkTitle
-    if not linkTitle:IsVisible() then
-        DEFAULT_CHAT_FRAME:AddMessage("|cffffffff[|cff00ff00Hacienda|cffffffff]|r Debug: linkTitle is not visible")
-    end
 
     local mainLabel = debtEntryFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     mainLabel:SetPoint("TOPLEFT", debtEntryFrame, "TOPLEFT", 10 * Hacienda.scaleFactor, -85 * Hacienda.scaleFactor)
@@ -881,10 +877,6 @@ function Hacienda:CreateFrame()
     mainBox:SetBackdropColor(0, 0, 0, 0.75)
     mainBox:SetBackdropBorderColor(0.5, 0.5, 0.5)
     mainBox:Show()
-    -- Debug visibility of mainBox
-    if not mainBox:IsVisible() then
-        DEFAULT_CHAT_FRAME:AddMessage("|cffffffff[|cff00ff00Hacienda|cffffffff]|r Debug: mainBox is not visible")
-    end
 
     Hacienda.linkMainInput = CreateFrame("EditBox", nil, mainBox)
     Hacienda.linkMainInput:SetPoint("TOPLEFT", mainBox, "TOPLEFT", 5, -3)
@@ -893,10 +885,6 @@ function Hacienda:CreateFrame()
     Hacienda.linkMainInput:SetFontObject("GameFontNormalSmall")
     Hacienda.linkMainInput:SetTextInsets(0, 0, 0, 0)
     Hacienda.linkMainInput:Show()
-    -- Debug visibility of linkMainInput
-    if not Hacienda.linkMainInput:IsVisible() then
-        DEFAULT_CHAT_FRAME:AddMessage("|cffffffff[|cff00ff00Hacienda|cffffffff]|r Debug: linkMainInput is not visible")
-    end
 
     local altLabel = debtEntryFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     altLabel:SetPoint("LEFT", mainBox, "RIGHT", 15 * Hacienda.scaleFactor, 0)
@@ -916,10 +904,6 @@ function Hacienda:CreateFrame()
     altBox:SetBackdropColor(0, 0, 0, 0.75)
     altBox:SetBackdropBorderColor(0.5, 0.5, 0.5)
     altBox:Show()
-    -- Debug visibility of altBox
-    if not altBox:IsVisible() then
-        DEFAULT_CHAT_FRAME:AddMessage("|cffffffff[|cff00ff00Hacienda|cffffffff]|r Debug: altBox is not visible")
-    end
 
     Hacienda.linkAltInput = CreateFrame("EditBox", nil, altBox)
     Hacienda.linkAltInput:SetPoint("TOPLEFT", altBox, "TOPLEFT", 5, -3)
@@ -928,10 +912,6 @@ function Hacienda:CreateFrame()
     Hacienda.linkAltInput:SetFontObject("GameFontNormalSmall")
     Hacienda.linkAltInput:SetTextInsets(0, 0, 0, 0)
     Hacienda.linkAltInput:Show()
-    -- Debug visibility of linkAltInput
-    if not Hacienda.linkAltInput:IsVisible() then
-        DEFAULT_CHAT_FRAME:AddMessage("|cffffffff[|cff00ff00Hacienda|cffffffff]|r Debug: linkAltInput is not visible")
-    end
 
     -- Focus + ESC/Enter/Tab behavior
     local function focusFX(edit, box, onEnter, nextField)
@@ -950,13 +930,7 @@ function Hacienda:CreateFrame()
             edit:SetText("")
         end)
         if onEnter then
-            edit:SetScript("OnEnterPressed", function()
-                Hacienda:LinkCharacters(Hacienda.linkMainInput:GetText(), Hacienda.linkAltInput:GetText())
-                Hacienda.linkMainInput:SetText("")
-                Hacienda.linkAltInput:SetText("")
-                Hacienda.linkMainInput:ClearFocus()
-                Hacienda.linkAltInput:ClearFocus()
-            end)
+            edit:SetScript("OnEnterPressed", onEnter)
         end
         if nextField then
             edit:SetScript("OnTabPressed", function()
@@ -980,10 +954,28 @@ function Hacienda:CreateFrame()
     end
 
     -- Apply focusFX calls
-    focusFX(Hacienda.debtPlayerInput, playerBox, false, Hacienda.debtAmountInput)
-    focusFX(Hacienda.debtAmountInput, amountBox, false, Hacienda.linkMainInput)
-    focusFX(Hacienda.linkMainInput, mainBox, true, Hacienda.linkAltInput)
-    focusFX(Hacienda.linkAltInput, altBox, true, Hacienda.debtPlayerInput)
+    focusFX(Hacienda.debtPlayerInput, playerBox, nil, Hacienda.debtAmountInput)
+    focusFX(Hacienda.debtAmountInput, amountBox, function()
+        Hacienda:AddManualDebtEntry()
+        Hacienda.debtPlayerInput:SetText("")
+        Hacienda.debtAmountInput:SetText("")
+        Hacienda.debtPlayerInput:ClearFocus()
+        Hacienda.debtAmountInput:ClearFocus()
+    end, Hacienda.linkMainInput)
+    focusFX(Hacienda.linkMainInput, mainBox, function()
+        Hacienda:LinkCharacters(Hacienda.linkMainInput:GetText(), Hacienda.linkAltInput:GetText())
+        Hacienda.linkMainInput:SetText("")
+        Hacienda.linkAltInput:SetText("")
+        Hacienda.linkMainInput:ClearFocus()
+        Hacienda.linkAltInput:ClearFocus()
+    end, Hacienda.linkAltInput)
+    focusFX(Hacienda.linkAltInput, altBox, function()
+        Hacienda:LinkCharacters(Hacienda.linkMainInput:GetText(), Hacienda.linkAltInput:GetText())
+        Hacienda.linkMainInput:SetText("")
+        Hacienda.linkAltInput:SetText("")
+        Hacienda.linkMainInput:ClearFocus()
+        Hacienda.linkAltInput:ClearFocus()
+    end, Hacienda.debtPlayerInput)
 
     -- Debug frame visibility
     if not debtEntryFrame:IsVisible() then
