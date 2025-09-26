@@ -450,8 +450,7 @@ function Hacienda:RemoveDebtFromGuildNote(playerName)
                     
                     -- Only update if the note has actually changed
                     if newNote ~= originalNote then
-                        GuildRosterSetPublicNote(i, newNote)
-                        DEFAULT_CHAT_FRAME:AddMessage("|cffffffff[|cff00ff00Hacienda|cffffffff]|r Removed debt information from guild note for " .. member)
+                        GuildRosterSetPublicNote(i, newNote)               
                     end
                 end
                 break
@@ -1466,12 +1465,6 @@ function Hacienda:DeleteConversation(contactName)
         return
     end
     
-    -- Debug: Log linkedChars before deletion
-    DEFAULT_CHAT_FRAME:AddMessage("|cffffffff[|cff00ff00Hacienda|cffffffff]|r Before deletion, linkedChars for " .. contactName .. ":")
-    for alt, main in pairs(Hacienda.linkedChars or {}) do
-        DEFAULT_CHAT_FRAME:AddMessage("|cffffffff[|cff00ff00Hacienda|cffffffff]|r   " .. alt .. " -> " .. main)
-    end
-    
     -- Get group members and delete conversation-related data
     local members = Hacienda:GetGroupMembers(contactName)
     for _, member in ipairs(members) do
@@ -1508,12 +1501,6 @@ function Hacienda:DeleteConversation(contactName)
         if Hacienda.chatTitle then
             Hacienda.chatTitle:SetText("Historial de conversaciones")
         end
-    end
-    
-    -- Debug: Log linkedChars after deletion
-    DEFAULT_CHAT_FRAME:AddMessage("|cffffffff[|cff00ff00Hacienda|cffffffff]|r After deletion, linkedChars for " .. contactName .. ":")
-    for alt, main in pairs(Hacienda.linkedChars or {}) do
-        DEFAULT_CHAT_FRAME:AddMessage("|cffffffff[|cff00ff00Hacienda|cffffffff]|r   " .. alt .. " -> " .. main)
     end
     
     -- Update the contact list and total debt
@@ -1877,14 +1864,12 @@ function Hacienda:CheckAndClearPendingOS(playerName, depositAmount, depositTime)
     for _, member in ipairs(members) do
         if self.conversations[member] then
             for index, msg in ipairs(self.conversations[member]) do
-                -- Ensure msg has moneyAmount and it's a number
                 if msg.outgoing and msg.moneyAmount and type(msg.moneyAmount) == "number" and not msg.paymentTime then
                     local remaining = msg.moneyAmount - (msg.paidAmount or 0)
                     if remaining > 0 then
                         table.insert(unpaid, {member = member, index = index, msg = msg, remaining = remaining, time = msg.time})
                     end
                 else
-                    -- Log invalid messages for debugging
                     if msg.outgoing and not msg.paymentTime then
                         DEFAULT_CHAT_FRAME:AddMessage(string.format(
                             "|cffffffff[|cff00ff00Hacienda|cffffffff]|r Warning: Skipping invalid message for %s: %s (moneyAmount: %s, system: %s)",
@@ -1943,6 +1928,13 @@ function Hacienda:CheckAndClearPendingOS(playerName, depositAmount, depositTime)
         table.insert(self.paidConversations[cl.member], paidMessage)
     end
     
+    -- Clean up empty conversations for the group
+    for _, member in ipairs(members) do
+        if self.conversations[member] and table.getn(self.conversations[member]) == 0 then
+            self.conversations[member] = nil
+        end
+    end
+    
     -- Add system message for the payment
     local amountApplied = depositAmount - remainingDeposit
     if amountApplied > 0 then
@@ -1963,7 +1955,7 @@ function Hacienda:CheckAndClearPendingOS(playerName, depositAmount, depositTime)
         local remainingText = ""
         if remainingGold > 0 then remainingText = remainingText .. remainingGold .. "g " end
         if remainingSilver > 0 then remainingText = remainingText .. remainingSilver .. "s " end
-        if remainingCopper > 0 then remainingText = remainingText .. remainingCopper .. "c" end
+        if remainingCopper > 0 then remainingText = remainingCopper .. "c" end
         
         local message = string.format("Payment applied: %s (Remaining: %s)", appliedText, remainingText)
         
@@ -1989,6 +1981,7 @@ function Hacienda:CheckAndClearPendingOS(playerName, depositAmount, depositTime)
     
     return false
 end
+
 -------------------------------------------------
 -- Export / Import (Classic-Compatible)
 -------------------------------------------------
