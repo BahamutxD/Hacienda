@@ -71,6 +71,7 @@ function Hacienda:OnLoad()
     this:RegisterEvent("CHAT_MSG_ADDON") -- For guild bank messages
     this:RegisterEvent("GUILD_ROSTER_UPDATE") -- To track guild info
     this:RegisterEvent("GUILDBANKFRAME_OPENED") -- To update bank logs when opening guild bank
+    this:RegisterEvent("RAID_ROSTER_UPDATE") -- Add this line for raid reminders
 
     SLASH_Hacienda1 = "/hacienda"
     SLASH_Hacienda2 = "/hc"
@@ -95,7 +96,8 @@ function Hacienda:OnEvent(event)
                 paidConversations = {}, -- OS Pagadas storage
                 linkedChars = {}, -- Linked characters storage
                 settings = {
-                    conversationsListCollapsed = false
+                    conversationsListCollapsed = false,
+                    autoRaidReminder = false -- Add default setting for auto reminders
                 },
                 pendingTotals = {} -- Initialize pending OS totals table
             }
@@ -116,6 +118,11 @@ function Hacienda:OnEvent(event)
             HaciendaSavedData.linkedChars = {}
         end
         
+        -- Backwards compatibility - ensure autoRaidReminder setting exists
+        if HaciendaSavedData.settings.autoRaidReminder == nil then
+            HaciendaSavedData.settings.autoRaidReminder = false
+        end
+        
         -- Initialize per-character settings if needed
         if not HaciendaCharacterSettings then
             HaciendaCharacterSettings = {
@@ -131,6 +138,9 @@ function Hacienda:OnEvent(event)
         Hacienda.characterSettings = HaciendaCharacterSettings
         Hacienda.unreadCounts = Hacienda.characterSettings.unreadCounts
         Hacienda.pendingTotals = HaciendaSavedData.pendingTotals
+        
+        -- Initialize raid reminders tracking
+        Hacienda.raidRemindersSent = {}
         
         -- Ensure all settings have default values
         if Hacienda.accountSettings.conversationsListCollapsed == nil then
@@ -317,6 +327,10 @@ function Hacienda:OnEvent(event)
                 Hacienda:UpdateAllGuildNotes()
             end, 2)
         end
+    
+    -- Handle raid roster updates for auto reminders
+    elseif event == "RAID_ROSTER_UPDATE" then
+        Hacienda:CheckRaidForDebtors()
     end
 end
 
@@ -669,7 +683,7 @@ function Hacienda:CreateFrame()
     frame:EnableMouse(true)
     frame:SetScript("OnMouseDown", function() frame:StartMoving(); frame:SetFrameStrata("HIGH") end)
     frame:SetScript("OnMouseUp", function() frame:StopMovingOrSizing() end)
-    frame:Show() -- Ensure main frame is visible
+    frame:Show()
     Hacienda.frame = frame
 
     -- Initialize tables if they don't exist
@@ -711,9 +725,9 @@ function Hacienda:CreateFrame()
     contactTitle:SetPoint("TOP", contactFrame, "TOP", 0, -5 * Hacienda.scaleFactor)
     contactTitle:SetText("Deudores")
 
-    local contactScroll = CreateFrame("ScrollFrame", "HaciendaContactScroll", contactFrame)
+    local contactScroll = CreateFrame("ScrollFrame", "HaciendaContactScroll", contactFrame, "UIPanelScrollFrameTemplate")
     contactScroll:SetPoint("TOPLEFT", contactFrame, "TOPLEFT", 5 * Hacienda.scaleFactor, -20 * Hacienda.scaleFactor)
-    contactScroll:SetPoint("BOTTOMRIGHT", contactFrame, "BOTTOMRIGHT", -5 * Hacienda.scaleFactor, 5 * Hacienda.scaleFactor)
+    contactScroll:SetPoint("BOTTOMRIGHT", contactFrame, "BOTTOMRIGHT", -25 * Hacienda.scaleFactor, 5 * Hacienda.scaleFactor)
 
     local contactContent = CreateFrame("Frame", nil, contactScroll)
     contactContent:SetWidth(130 * Hacienda.scaleFactor)
@@ -739,13 +753,54 @@ function Hacienda:CreateFrame()
     Hacienda.chatTitle:SetPoint("TOP", chatFrame, "TOP", 0, -5 * Hacienda.scaleFactor)
     Hacienda.chatTitle:SetText("Historial de conversaciones")
 
-    Hacienda.chatHistory = CreateFrame("ScrollingMessageFrame", "HaciendaChatHistory", chatFrame)
-    Hacienda.chatHistory:SetPoint("TOPLEFT", chatFrame, "TOPLEFT", 5 * Hacienda.scaleFactor, -20 * Hacienda.scaleFactor)
-    Hacienda.chatHistory:SetPoint("BOTTOMRIGHT", chatFrame, "BOTTOMRIGHT", -5 * Hacienda.scaleFactor, 40 * Hacienda.scaleFactor)
+    -- Create ScrollFrame for chat history
+    local chatScroll = CreateFrame("ScrollFrame", "HaciendaChatScroll", chatFrame, "UIPanelScrollFrameTemplate")
+    chatScroll:SetPoint("TOPLEFT", chatFrame, "TOPLEFT", 5 * Hacienda.scaleFactor, -20 * Hacienda.scaleFactor)
+    chatScroll:SetPoint("BOTTOMRIGHT", chatFrame, "BOTTOMRIGHT", -25 * Hacienda.scaleFactor, 40 * Hacienda.scaleFactor)
+    chatScroll:EnableMouse(true)
+    chatScroll:EnableMouseWheel(true)
+    chatScroll:SetScript("OnMouseWheel", function(self, delta)
+        if delta then
+            local current = self:GetVerticalScroll()
+            local maxScroll = self:GetVerticalScrollRange()
+            local scrollStep = 20 * Hacienda.scaleFactor -- Reduced for smoother scrolling
+            if delta > 0 then
+                self:SetVerticalScroll(math.max(0, current - scrollStep))
+            elseif delta < 0 then
+                self:SetVerticalScroll(math.min(maxScroll, current + scrollStep))
+            end
+            DEFAULT_CHAT_FRAME:AddMessage("|cffffffff[|cff00ff00Hacienda|cffffffff]|r ScrollFrame: delta="..delta..", current="..current..", max="..maxScroll)
+        end
+    end)
+
+    -- Create ScrollingMessageFrame as the scroll child
+    Hacienda.chatHistory = CreateFrame("ScrollingMessageFrame", "HaciendaChatHistory", chatScroll)
+    Hacienda.chatHistory:SetPoint("TOPLEFT", chatScroll, "TOPLEFT", 0, 0)
+    Hacienda.chatHistory:SetWidth(360 * Hacienda.scaleFactor)
+    -- Height will be dynamically set in UpdateChatHistory
     Hacienda.chatHistory:SetFontObject(GameFontNormal)
     Hacienda.chatHistory:SetJustifyH("LEFT")
-    Hacienda.chatHistory:SetMaxLines(100)
+    Hacienda.chatHistory:SetMaxLines(500)
     Hacienda.chatHistory:SetFading(false)
+    Hacienda.chatHistory:EnableMouse(true)
+    Hacienda.chatHistory:EnableMouseWheel(true)
+    Hacienda.chatHistory:SetScript("OnMouseWheel", function(self, delta)
+        if delta then
+            local scrollFrame = self:GetParent()
+            local current = scrollFrame:GetVerticalScroll()
+            local maxScroll = scrollFrame:GetVerticalScrollRange()
+            local scrollStep = 20 * Hacienda.scaleFactor -- Reduced for smoother scrolling
+            if delta > 0 then
+                scrollFrame:SetVerticalScroll(math.max(0, current - scrollStep))
+            elseif delta < 0 then
+                scrollFrame:SetVerticalScroll(math.min(maxScroll, current + scrollStep))
+            end
+            DEFAULT_CHAT_FRAME:AddMessage("|cffffffff[|cff00ff00Hacienda|cffffffff]|r ChatHistory: delta="..delta..", current="..current..", max="..maxScroll)
+        end
+    end)
+
+    -- Set the ScrollingMessageFrame as the scroll child
+    chatScroll:SetScrollChild(Hacienda.chatHistory)
 
     -- Data Sync Panel
     local syncFrame = CreateFrame("Frame", nil, frame)
@@ -792,7 +847,7 @@ function Hacienda:CreateFrame()
     })
     debtEntryFrame:SetBackdropColor(0, 0, 0, 0.7)
     debtEntryFrame:SetBackdropBorderColor(0.6, 0.6, 0.6)
-    debtEntryFrame:Show() -- Ensure debtEntryFrame is visible
+    debtEntryFrame:Show()
 
     local manualDebtTitle = debtEntryFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     manualDebtTitle:SetPoint("TOPLEFT", debtEntryFrame, "TOPLEFT", 10 * Hacienda.scaleFactor, -10 * Hacienda.scaleFactor)
@@ -982,6 +1037,147 @@ function Hacienda:CreateFrame()
     end
 end
 
+function Hacienda:UpdateChatHistory()
+    if not self.frame or not self.frame:IsVisible() then return end
+    if not self.selectedContact or not self.chatHistory then return end
+    
+    self.chatHistory:Clear()
+    self.chatHistory:SetJustifyH("LEFT")
+    
+    -- For OS Pagadas category, show all paid messages from all players
+    if self.selectedContact == PAID_OS_CONTACT then
+        self:DisplayPaidOSHistory()
+        return
+    end
+    
+    -- Combine persistent and transient messages for regular contacts
+    local allMessages = {}
+    
+    -- Add persistent messages
+    if self.conversations[self.selectedContact] then
+        for _, msg in ipairs(self.conversations[self.selectedContact]) do
+            table.insert(allMessages, msg)
+        end
+    end
+    
+    -- Add transient messages
+    if self.transientMessages[self.selectedContact] then
+        for _, msg in ipairs(self.transientMessages[self.selectedContact]) do
+            table.insert(allMessages, msg)
+        end
+    end
+    
+    -- Sort messages by timestamp
+    table.sort(allMessages, function(a, b)
+        if not a.time and not b.time then return false end
+        if not a.time then return true end
+        if not b.time then return false end
+        if a.time == b.time then
+            return tostring(a.message) < tostring(b.message)
+        end
+        return a.time < b.time
+    end)
+    
+    -- Display settings
+    local dateColor = "|cffa0a0a0"  -- Grey for dates
+    local systemColor = "|cffffcc00" -- Yellow for system
+    local outgoingColor = "|cff00ff00" -- Green for outgoing
+    local incomingColor = "|cffffffff" -- White for incoming
+    
+    -- Add messages and calculate content height
+    local lineHeight = 16 * Hacienda.scaleFactor -- Increased to account for possible wrapping
+    local numLines = 0
+    for i, msg in ipairs(allMessages) do
+        local timeText = date("%m/%d %H:%M", msg.time or time())
+        local coloredTime = dateColor.."["..timeText.."]|r "
+        
+        local messageText = msg.message
+        if msg.system then
+            messageText = systemColor..self:ColorizeCurrency(messageText).."|r"
+        elseif msg.outgoing then
+            messageText = outgoingColor..self:ColorizeCurrency(messageText).."|r"
+        else
+            messageText = incomingColor..self:ColorizeCurrency(messageText).."|r"
+        end
+        
+        self.chatHistory:AddMessage(coloredTime..messageText)
+        numLines = numLines + 1 -- One line for the message
+        
+        -- Add separator if not the last message
+        if i < table.getn(allMessages) then
+            self.chatHistory:AddMessage("|cff808080---------------|r")
+            numLines = numLines + 1 -- One line for the separator
+        end
+    end
+    
+    -- Update chatHistory height based on content
+    local contentHeight = numLines * lineHeight
+    Hacienda.chatHistory:SetHeight(math.max(contentHeight, 200 * Hacienda.scaleFactor))
+    
+    -- Update scroll frame
+    local chatScroll = _G["HaciendaChatScroll"]
+    if chatScroll then
+        -- Force visibility and update of scroll child dimensions
+        Hacienda.chatHistory:Show()
+        chatScroll:Show()
+        chatScroll:UpdateScrollChildRect()
+        local maxScroll = chatScroll:GetVerticalScrollRange()
+        if maxScroll > 0 then
+            chatScroll:SetVerticalScroll(maxScroll)
+        end
+        
+        -- Multi-frame delay to ensure layout is fully rendered
+        local tempFrame = CreateFrame("Frame")
+        local attempts = 0
+        local maxAttempts = 20 -- Increased to 20 frames (~0.4s at 60fps)
+        tempFrame:SetScript("OnUpdate", function(tempFrameSelf)
+            attempts = attempts + 1
+            -- Ensure chatScroll is still valid and visible
+            if not chatScroll or not chatScroll:IsVisible() then
+                tempFrame:SetScript("OnUpdate", nil)
+                tempFrame:Hide()
+                return
+            end
+            -- Force update of scroll rect and message frame
+            Hacienda.chatHistory:Show()
+            chatScroll:UpdateScrollChildRect()
+            local delayedMaxScroll = chatScroll:GetVerticalScrollRange()
+            
+            if delayedMaxScroll > 0 or attempts >= maxAttempts then
+                if delayedMaxScroll > 0 then
+                    chatScroll:SetVerticalScroll(delayedMaxScroll)
+                else
+                    -- Force a manual refresh to try displaying content
+                    Hacienda.chatHistory:Clear()
+                    for i, msg in ipairs(allMessages) do
+                        local timeText = date("%m/%d %H:%M", msg.time or time())
+                        local coloredTime = dateColor.."["..timeText.."]|r "
+                        local messageText = msg.message
+                        if msg.system then
+                            messageText = systemColor..self:ColorizeCurrency(messageText).."|r"
+                        elseif msg.outgoing then
+                            messageText = outgoingColor..self:ColorizeCurrency(messageText).."|r"
+                        else
+                            messageText = incomingColor..self:ColorizeCurrency(messageText).."|r"
+                        end
+                        Hacienda.chatHistory:AddMessage(coloredTime..messageText)
+                        if i < table.getn(allMessages) then
+                            Hacienda.chatHistory:AddMessage("|cff808080---------------|r")
+                        end
+                    end
+                    chatScroll:UpdateScrollChildRect()
+                    delayedMaxScroll = chatScroll:GetVerticalScrollRange()
+                    if delayedMaxScroll > 0 then
+                        chatScroll:SetVerticalScroll(delayedMaxScroll)
+                    end
+                end
+                tempFrame:SetScript("OnUpdate", nil) -- Stop the loop
+                tempFrame:Hide() -- Clean up
+            end
+        end)
+    end
+end
+
 function Hacienda:CreateMinimapButton()
     if self.minimapButton then return end
     
@@ -1056,6 +1252,15 @@ function Hacienda:CreateMinimapButton()
             end
         end
     end)
+    -- Add Auto Raid Reminders option
+    AddMenuButton("Auto Raid Reminders", 6, function() 
+        Hacienda:ToggleAutoRaidReminder() 
+        if Hacienda.accountSettings.autoRaidReminder then
+            DEFAULT_CHAT_FRAME:AddMessage("|cffffffff[|cff00ff00Hacienda|cffffffff]|r Auto raid reminders: |cff00ff00ENABLED|r")
+        else
+            DEFAULT_CHAT_FRAME:AddMessage("|cffffffff[|cff00ff00Hacienda|cffffffff]|r Auto raid reminders: |cffff0000DISABLED|r")
+        end
+    end)
 
     minimapButton:RegisterForClicks("LeftButtonUp", "RightButtonUp")
     minimapButton:SetScript("OnClick", function()
@@ -1095,6 +1300,12 @@ function Hacienda:CreateMinimapButton()
         GameTooltip:SetText("Hacienda", 1, 1, 1)
         GameTooltip:AddLine("Left-click to open Hacienda", nil, nil, nil, 1)
         GameTooltip:AddLine("Right-click for options", nil, nil, nil, 1)
+        -- Add status of auto raid reminders to tooltip
+        if Hacienda.accountSettings and Hacienda.accountSettings.autoRaidReminder then
+            GameTooltip:AddLine("Auto Raid Reminders: |cff00ff00ENABLED|r", nil, nil, nil, 1)
+        else
+            GameTooltip:AddLine("Auto Raid Reminders: |cffff0000DISABLED|r", nil, nil, nil, 1)
+        end
         GameTooltip:Show()
     end)
     minimapButton:SetScript("OnLeave", function() GameTooltip:Hide() end)
@@ -1601,78 +1812,6 @@ end
 
 function Hacienda:ToggleFrame()
     if self.frame and self.frame:IsVisible() then self:HideFrame() else self:ShowFrame() end
-end
-
-function Hacienda:UpdateChatHistory()
-    if not self.frame or not self.frame:IsVisible() then return end
-    if not self.selectedContact or not self.chatHistory then return end
-    
-    self.chatHistory:Clear()
-    self.chatHistory:SetJustifyH("LEFT")
-    
-    -- For OS Pagadas category, show all paid messages from all players
-    if self.selectedContact == PAID_OS_CONTACT then
-        self:DisplayPaidOSHistory()
-        return
-    end
-    
-    -- Combine persistent and transient messages for regular contacts
-    local allMessages = {}
-    
-    -- Add persistent messages
-    if self.conversations[self.selectedContact] then
-        for _, msg in ipairs(self.conversations[self.selectedContact]) do
-            table.insert(allMessages, msg)
-        end
-    end
-    
-    -- Add transient messages
-    if self.transientMessages[self.selectedContact] then
-        for _, msg in ipairs(self.transientMessages[self.selectedContact]) do
-            table.insert(allMessages, msg)
-        end
-    end
-    
-    -- Sort messages by timestamp
-    table.sort(allMessages, function(a, b)
-        if not a.time and not b.time then return false end
-        if not a.time then return true end
-        if not b.time then return false end
-        if a.time == b.time then
-            return tostring(a.message) < tostring(b.message)
-        end
-        return a.time < b.time
-    end)
-    
-    -- Display settings
-    local dateColor = "|cffa0a0a0"  -- Grey for dates
-    local systemColor = "|cffffcc00" -- Yellow for system
-    local outgoingColor = "|cff00ff00" -- Green for outgoing
-    local incomingColor = "|cffffffff" -- White for incoming
-    
-    -- Add each message to the chat history
-    for i, msg in ipairs(allMessages) do
-        local timeText = date("%m/%d %H:%M", msg.time or time())
-        local coloredTime = dateColor.."["..timeText.."]|r "
-        
-        local messageText = msg.message
-        if msg.system then
-            messageText = systemColor..self:ColorizeCurrency(messageText).."|r"
-        elseif msg.outgoing then
-            messageText = outgoingColor..self:ColorizeCurrency(messageText).."|r"
-        else
-            messageText = incomingColor..self:ColorizeCurrency(messageText).."|r"
-        end
-        
-        self.chatHistory:AddMessage(coloredTime..messageText)
-        
-        -- Add separator if not the last message
-        if i < table.getn(allMessages) then
-            self.chatHistory:AddMessage("|cff808080---------------|r")
-        end
-    end
-    
-    self.chatHistory:ScrollToBottom()
 end
 
 function Hacienda:DisplayPaidOSHistory()
@@ -2532,4 +2671,127 @@ function Hacienda:UnlinkCharacters(main, alt)
     end
 
     Hacienda:UpdateContactList()
+end
+
+function Hacienda:CheckRaidForDebtors()
+    -- Check if auto-reminder is enabled
+    if not Hacienda.accountSettings.autoRaidReminder then
+        return
+    end
+    
+    -- Initialize tracking if it doesn't exist
+    if not Hacienda.raidRemindersSent then
+        Hacienda.raidRemindersSent = {}
+    end
+    
+    -- Track current raid members to detect joins
+    if not Hacienda.currentRaidMembers then
+        Hacienda.currentRaidMembers = {}
+    end
+    
+    local inRaid = GetNumRaidMembers() > 0
+    local inParty = GetNumPartyMembers() > 0
+    
+    if not inRaid and not inParty then
+        -- Clear current raid members when not in raid/party
+        Hacienda.currentRaidMembers = {}
+        return
+    end
+    
+    local numMembers = inRaid and GetNumRaidMembers() or GetNumPartyMembers()
+    local prefix = inRaid and "raid" or "party"
+    
+    -- Find players who just joined the raid
+    local newMembers = {}
+    local currentMembers = {}
+    
+    for i = 1, numMembers do
+        local name, rank, subgroup, level, class, fileName, zone, online, isDead = GetRaidRosterInfo(i)
+        if name and online then
+            -- Clean the name (remove server/realm if present)
+            local playerName = string.match(name, "([^%-]+)") or name
+            currentMembers[playerName] = true
+            
+            -- Check if this player is new to the raid (wasn't in previous check)
+            if not Hacienda.currentRaidMembers[playerName] then
+                table.insert(newMembers, playerName)
+            end
+        end
+    end
+    
+    -- Update current raid members for next check
+    Hacienda.currentRaidMembers = currentMembers
+    
+    -- Send reminders only to new members with existing debt
+    for _, playerName in ipairs(newMembers) do
+        local groupTotal = Hacienda:GetGroupPending(playerName)
+        if groupTotal > 0 and not Hacienda.raidRemindersSent[playerName] then
+            -- Send the reminder
+            Hacienda:SendAutoDebtReminder(playerName, groupTotal)
+            Hacienda.raidRemindersSent[playerName] = true
+        end
+    end
+end
+
+function Hacienda:ProcessRaidDebtReminders()
+    local inRaid = GetNumRaidMembers() > 0
+    local inParty = GetNumPartyMembers() > 0
+    
+    if not inRaid and not inParty then
+        return -- Not in a raid or party
+    end
+    
+    local numMembers = inRaid and GetNumRaidMembers() or GetNumPartyMembers()
+    local prefix = inRaid and "raid" or "party"
+    
+    for i = 1, numMembers do
+        local name, rank, subgroup, level, class, fileName, zone, online, isDead = GetRaidRosterInfo(i)
+        if name and online then
+            -- Clean the name (remove server/realm if present)
+            local playerName = string.match(name, "([^%-]+)") or name
+            
+            -- Check if this player has debt and hasn't been reminded this session
+            local groupTotal = Hacienda:GetGroupPending(playerName)
+            if groupTotal > 0 and not Hacienda.raidRemindersSent[playerName] then
+                -- Send the reminder
+                Hacienda:SendAutoDebtReminder(playerName, groupTotal)
+                Hacienda.raidRemindersSent[playerName] = true
+            end
+        end
+    end
+end
+
+function Hacienda:SendAutoDebtReminder(playerName, debtAmount)
+    -- Convert copper to gold/silver/copper
+    local gold = floor(debtAmount / (COPPER_PER_SILVER * SILVER_PER_GOLD))
+    local silver = floor((debtAmount - (gold * COPPER_PER_SILVER * SILVER_PER_GOLD)) / COPPER_PER_SILVER)
+    local copper = mod(debtAmount, COPPER_PER_SILVER)
+    
+    -- Format the message
+    local amountText = ""
+    if gold > 0 then amountText = amountText .. gold .. "g " end
+    if silver > 0 then amountText = amountText .. silver .. "s " end
+    if copper > 0 then amountText = amountText .. copper .. "c" end
+    
+    local message = string.format("Recordatorio: Tienes %s de OS pendiente por pagar a la hermandad. Por favor deposita en el banco de la hermandad cuando te sea conveniente. ¡Gracias!", amountText)
+    
+    -- Send the whisper
+    SendChatMessage(message, "WHISPER", nil, playerName)
+    
+    DEFAULT_CHAT_FRAME:AddMessage("|cffffffff[|cff00ff00Hacienda|cffffffff]|r Sent auto-reminder to " .. playerName .. ".")
+end
+
+-- Add a setting to toggle this feature
+function Hacienda:ToggleAutoRaidReminder()
+    if not Hacienda.accountSettings then
+        Hacienda.accountSettings = {}
+    end
+    
+    Hacienda.accountSettings.autoRaidReminder = not Hacienda.accountSettings.autoRaidReminder
+    
+    if Hacienda.accountSettings.autoRaidReminder then
+        DEFAULT_CHAT_FRAME:AddMessage("|cffffffff[|cff00ff00Hacienda|cffffffff]|r Auto raid reminders enabled.")
+    else
+        DEFAULT_CHAT_FRAME:AddMessage("|cffffffff[|cff00ff00Hacienda|cffffffff]|r Auto raid reminders disabled.")
+    end
 end
