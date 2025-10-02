@@ -2219,36 +2219,67 @@ end
 -- Export only conversations that have pending OS
 function Hacienda:ExportData()
     local export = {
+        pendingTotals = {},
+        linkedChars = {},
+        paidConversations = {},
         conversations = {},
+        accountSettings = {}
     }
 
-    for contact, messages in pairs(Hacienda.conversations or {}) do
-        -- Use `next(messages)` to check if the table contains any entries.
+    -- Export pending totals
+    for contact, total in pairs(Hacienda.pendingTotals or {}) do
+        if total > 0 and contact ~= GUILD_BANK_CONTACT and contact ~= PAID_OS_CONTACT then
+            export.pendingTotals[contact] = total
+        end
+    end
+
+    -- Export linked characters
+    for alt, main in pairs(Hacienda.linkedChars or {}) do
+        export.linkedChars[alt] = main
+    end
+
+    -- Export paid conversations
+    for contact, messages in pairs(Hacienda.paidConversations or {}) do
         if messages and next(messages) then
-            export.conversations[contact] = {}
+            export.paidConversations[contact] = {}
             for _, msg in ipairs(messages) do
-                table.insert(export.conversations[contact], {
-                    message     = msg.message,
-                    time        = msg.time,
-                    outgoing    = msg.outgoing,
+                table.insert(export.paidConversations[contact], {
+                    message = msg.message,
+                    time = msg.time,
                     moneyAmount = msg.moneyAmount,
-                    paidAmount  = msg.paidAmount,
-                    paymentTime = msg.paymentTime,
-                    system      = msg.system,
+                    paidAmount = msg.paidAmount,
+                    paymentTime = msg.paymentTime
                 })
             end
         end
     end
 
-    -- Prefer the SerializeTable helper (your file used this previously).
-    local exportString
-    if SerializeTable and type(SerializeTable) == "function" then
-        exportString = SerializeTable(export)
-    else
-        -- Fallback (not pretty, but avoids nil)
-        exportString = tostring(export)
+    -- Export most recent unpaid conversation for each debtor
+    for contact, messages in pairs(Hacienda.conversations or {}) do
+        if export.pendingTotals[contact] and messages and next(messages) then
+            -- Find the most recent message with a moneyAmount
+            local latestMsg = nil
+            for _, msg in ipairs(messages) do
+                if msg.moneyAmount and (not latestMsg or msg.time > latestMsg.time) then
+                    latestMsg = msg
+                end
+            end
+            if latestMsg then
+                export.conversations[contact] = {
+                    message = latestMsg.message,
+                    time = latestMsg.time,
+                    moneyAmount = latestMsg.moneyAmount
+                }
+            end
+        end
     end
 
+    -- Export account settings
+    for key, value in pairs(Hacienda.accountSettings or {}) do
+        export.accountSettings[key] = value
+    end
+
+    local exportString = SerializeTable(export)
     return exportString
 end
 
@@ -2271,57 +2302,123 @@ function Hacienda:ImportData(importString)
         return
     end
 
-    if not imported.conversations then
-        DEFAULT_CHAT_FRAME:AddMessage("|cffffffff[|cff00ff00Hacienda|cffffffff]|r No conversations found in import data.")
-        return
-    end
-
-    -- ✅ Merge conversations instead of replacing
-    for contact, messages in pairs(imported.conversations or {}) do
-        if not HaciendaSavedData.conversations[contact] then
-            HaciendaSavedData.conversations[contact] = {}
-        end
-
-        for _, msg in pairs(messages) do
-            local isDuplicate = false
-            for _, existing in ipairs(HaciendaSavedData.conversations[contact]) do
-                if existing.time == msg.time and existing.message == msg.message then
-                    isDuplicate = true
-                    break
+    -- Merge pending totals
+    if imported.pendingTotals then
+        for contact, total in pairs(imported.pendingTotals) do
+            if total > 0 then
+                Hacienda.pendingTotals[contact] = total
+                if not HaciendaSavedData.conversations[contact] then
+                    HaciendaSavedData.conversations[contact] = {}
                 end
             end
-            if not isDuplicate then
-                table.insert(HaciendaSavedData.conversations[contact], msg)
+        end
+    end
+
+    -- Merge linked characters
+    if imported.linkedChars then
+        for alt, main in pairs(imported.linkedChars) do
+            Hacienda.linkedChars[alt] = main
+        end
+    end
+
+    -- Merge paid conversations
+    if imported.paidConversations then
+        for contact, messages in pairs(imported.paidConversations) do
+            if messages and next(messages) then
+                if not HaciendaSavedData.paidConversations[contact] then
+                    HaciendaSavedData.paidConversations[contact] = {}
+                end
+                for _, msg in ipairs(messages) do
+                    local isDuplicate = false
+                    for _, existing in ipairs(HaciendaSavedData.paidConversations[contact]) do
+                        if existing.time == msg.time and existing.message == msg.message then
+                            isDuplicate = true
+                            break
+                        end
+                    end
+                    if not isDuplicate then
+                        table.insert(HaciendaSavedData.paidConversations[contact], {
+                            message = msg.message,
+                            time = msg.time,
+                            moneyAmount = msg.moneyAmount,
+                            paidAmount = msg.paidAmount,
+                            paymentTime = msg.paymentTime
+                        })
+                    end
+                end
             end
         end
     end
 
-    -- Refresh reference
+    -- Merge conversation data (most recent unpaid)
+    if imported.conversations then
+        for contact, msg in pairs(imported.conversations) do
+            if msg and msg.message and msg.time and msg.moneyAmount then
+                if not HaciendaSavedData.conversations[contact] then
+                    HaciendaSavedData.conversations[contact] = {}
+                end
+                local isDuplicate = false
+                for _, existing in ipairs(HaciendaSavedData.conversations[contact]) do
+                    if existing.time == msg.time and existing.message == msg.message then
+                        isDuplicate = true
+                        break
+                    end
+                end
+                if not isDuplicate then
+                    table.insert(HaciendaSavedData.conversations[contact], {
+                        message = msg.message,
+                        time = msg.time,
+                        moneyAmount = msg.moneyAmount
+                    })
+                end
+            end
+        end
+    end
+
+    -- Merge account settings
+    if imported.accountSettings then
+        for key, value in pairs(imported.accountSettings) do
+            Hacienda.accountSettings[key] = value
+        end
+    end
+
+    -- Refresh references
     Hacienda.conversations = HaciendaSavedData.conversations
+    Hacienda.paidConversations = HaciendaSavedData.paidConversations
+    Hacienda.linkedChars = HaciendaSavedData.linkedChars
+    Hacienda.accountSettings = HaciendaSavedData.accountSettings
 
-    -- ✅ Recalculate pending totals
-    Hacienda.pendingTotals = {}
-    for contact, messages in pairs(Hacienda.conversations) do
-        local total = 0
-        for _, msg in ipairs(messages) do
-            if msg.outgoing and msg.moneyAmount and not msg.paymentTime then
-                local remaining = msg.moneyAmount - (msg.paidAmount or 0)
-                if remaining > 0 then
-                    total = total + remaining
-                end
-            end
-        end
-        if total > 0 then
-            Hacienda.pendingTotals[contact] = total
-        end
-    end
-
-    -- ✅ Update guild notes right after import (only if in guild & can edit)
+    -- Update guild notes
     Hacienda:UpdateAllGuildNotes()
 
-    DEFAULT_CHAT_FRAME:AddMessage("|cffffffff[|cff00ff00Hacienda|cffffffff]|r Import complete. Conversations merged.")
+    DEFAULT_CHAT_FRAME:AddMessage("|cffffffff[|cff00ff00Hacienda|cffffffff]|r Import complete. Pending totals, linked characters, paid conversations, conversations, and account settings merged.")
 end
 
+function Hacienda:EraseAllData()
+    -- Wipe all saved data
+    HaciendaSavedData = {
+        conversations = {},
+        paidConversations = {},
+        pendingTotals = {},
+        linkedChars = {},
+        accountSettings = {},
+        transientMessages = {},
+        unreadCounts = {}
+    }
+
+    -- Refresh references
+    Hacienda.conversations = HaciendaSavedData.conversations
+    Hacienda.paidConversations = HaciendaSavedData.paidConversations
+    Hacienda.linkedChars = HaciendaSavedData.linkedChars
+    Hacienda.accountSettings = HaciendaSavedData.accountSettings
+    Hacienda.transientMessages = HaciendaSavedData.transientMessages
+    Hacienda.unreadCounts = HaciendaSavedData.unreadCounts
+
+    -- Update guild notes
+    Hacienda:UpdateAllGuildNotes()
+
+    DEFAULT_CHAT_FRAME:AddMessage("|cffffffff[|cff00ff00Hacienda|cffffffff]|r All data erased.")
+end
 
 -- Slash commands
 SLASH_HACIENDAEXPORT1 = "/hcexport"
@@ -2348,7 +2445,7 @@ function Hacienda:ShowImportExportFrame(mode)
     if not self.importExportFrame then
         local f = CreateFrame("Frame", "HaciendaImportExportFrame", UIParent)
         f:SetWidth(400)
-		f:SetHeight(300)
+        f:SetHeight(300)
         f:SetPoint("CENTER", UIParent, "CENTER", 0, 0)
         f:SetFrameStrata("DIALOG")
         f:SetToplevel(true)
@@ -2374,9 +2471,21 @@ function Hacienda:ShowImportExportFrame(mode)
         editBox:SetMultiLine(true)
         editBox:SetFontObject("GameFontNormal")
         editBox:SetWidth(340)
+        editBox:SetHeight(1000) -- Set large height for content
+        editBox:SetMaxLetters(100000) -- Allow large strings
         editBox:SetAutoFocus(false)
+        editBox:SetTextInsets(5, 5, 5, 5)
         scroll:SetScrollChild(editBox)
         f.editBox = editBox
+
+        -- Update scroll range dynamically
+        editBox:SetScript("OnTextChanged", function(editBoxFrame)
+            if editBoxFrame and editBoxFrame:GetParent() then
+                local scrollFrame = editBoxFrame:GetParent()
+                scrollFrame:SetVerticalScroll(0)
+                scrollFrame:UpdateScrollChildRect()
+            end
+        end)
 
         -- Close Button
         local closeBtn = CreateFrame("Button", nil, f, "UIPanelCloseButton")
@@ -2385,7 +2494,7 @@ function Hacienda:ShowImportExportFrame(mode)
         -- Action Button
         f.actionButton = CreateFrame("Button", nil, f, "UIPanelButtonTemplate")
         f.actionButton:SetWidth(100)
-		f.actionButton:SetHeight(24)
+        f.actionButton:SetHeight(24)
         f.actionButton:SetPoint("BOTTOM", f, "BOTTOM", 0, 15)
 
         f:Hide()
@@ -2397,9 +2506,21 @@ function Hacienda:ShowImportExportFrame(mode)
 
     if mode == "export" then
         f.title:SetText("Export Data")
-        local exportString = Hacienda:ExportData() -- your existing export function
-        f.editBox:SetText(exportString or "")
-        f.editBox:HighlightText()
+        local exportString = Hacienda:ExportData()
+        if string.len(exportString) > 65535 then
+            DEFAULT_CHAT_FRAME:AddMessage("|cffffffff[|cff00ff00Hacienda|cffffffff]|r Export too large! Printing in chat...")
+            local chunkSize = 200
+            for i = 1, string.len(exportString), chunkSize do
+                local chunk = string.sub(exportString, i, i + chunkSize - 1)
+                DEFAULT_CHAT_FRAME:AddMessage(chunk)
+            end
+            f.editBox:SetText("Export too large, check chat.")
+            f.editBox:HighlightText()
+        else
+            f.editBox:SetText(exportString or "")
+            f.editBox:HighlightText()
+            f.editBox:GetParent():UpdateScrollChildRect() -- Update scroll range
+        end
         f.actionButton:SetText("Copy")
         f.actionButton:SetScript("OnClick", function()
             f.editBox:SetFocus()
@@ -2415,6 +2536,70 @@ function Hacienda:ShowImportExportFrame(mode)
             f:Hide()
         end)
     end
+end
+
+function Hacienda:ShowDataSyncFrame()
+    if not self.dataSyncFrame then
+        local f = CreateFrame("Frame", "HaciendaDataSyncFrame", UIParent)
+        f:SetWidth(300)
+        f:SetHeight(150)
+        f:SetPoint("CENTER", UIParent, "CENTER", 0, 0)
+        f:SetFrameStrata("DIALOG")
+        f:SetToplevel(true)
+        f:SetBackdrop({
+            bgFile = "Interface\\ChatFrame\\ChatFrameBackground",
+            edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+            tile = true, tileSize = 16, edgeSize = 12,
+            insets = { left = 3, right = 3, top = 3, bottom = 3 }
+        })
+        f:SetBackdropColor(0, 0, 0, 0.8)
+        f:SetBackdropBorderColor(0.6, 0.6, 0.6)
+
+        -- Title
+        f.title = f:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+        f.title:SetPoint("TOP", f, "TOP", 0, -10)
+        f.title:SetText("Data Sync")
+
+        -- Erase All Button
+        f.eraseButton = CreateFrame("Button", nil, f, "UIPanelButtonTemplate")
+        f.eraseButton:SetWidth(100)
+        f.eraseButton:SetHeight(24)
+        f.eraseButton:SetPoint("BOTTOM", f, "BOTTOM", 0, 15)
+        f.eraseButton:SetText("Erase All")
+        f.eraseButton:SetScript("OnClick", function()
+            StaticPopup_Show("HACIENDA_CONFIRM_ERASE")
+        end)
+
+        -- Close Button
+        local closeBtn = CreateFrame("Button", nil, f, "UIPanelCloseButton")
+        closeBtn:SetPoint("TOPRIGHT", f, "TOPRIGHT")
+
+        f:Hide()
+        self.dataSyncFrame = f
+    end
+
+    local f = self.dataSyncFrame
+    f:Show()
+end
+
+-- Define confirmation dialog for erasing data
+StaticPopupDialogs["HACIENDA_CONFIRM_ERASE"] = {
+    text = "Are you sure you want to erase all Hacienda data? This cannot be undone.",
+    button1 = "Yes",
+    button2 = "No",
+    OnAccept = function()
+        Hacienda:EraseAllData()
+    end,
+    timeout = 0,
+    whileDead = true,
+    hideOnEscape = true,
+    preferredIndex = 3
+}
+
+-- Register slash command for Data Sync frame
+SLASH_HACIENDASYNC1 = "/hcsync"
+SlashCmdList["HACIENDASYNC"] = function()
+    Hacienda:ShowDataSyncFrame()
 end
 
 function Hacienda:ShowLinkedCharactersFrame()
