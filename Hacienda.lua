@@ -482,19 +482,20 @@ function Hacienda:UpdateAllGuildNotes()
     
     DEFAULT_CHAT_FRAME:AddMessage("|cffffffff[|cff00ff00Hacienda|cffffffff]|r Updating all guild notes with current debt information...")
     
-    -- Get unique mains from pending totals
-    local mains = {}
-    for player, _ in pairs(Hacienda.pendingTotals) do
-        mains[self:GetMainChar(player)] = true
-    end
-    
-    -- Update notes for each unique group
-    for main, _ in pairs(mains) do
-        local groupTotal = self:GetGroupPending(main)
-        if groupTotal > 0 then
-            self:UpdateGuildNoteWithDebt(main)
-        else
-            self:RemoveDebtFromGuildNote(main)
+    -- Get ALL guild members, not just those with pending totals
+    for i = 1, GetNumGuildMembers() do
+        local name, rank, rankIndex, level, class, zone, note, officerNote, online, status = GetGuildRosterInfo(i)
+        if name then
+            -- Clean the name (remove server/realm if present)
+            local playerName = string.match(name, "([^%-]+)") or name
+            local main = self:GetMainChar(playerName)
+            local groupTotal = self:GetGroupPending(main)
+            
+            if groupTotal > 0 then
+                self:UpdateGuildNoteWithDebt(main)
+            else
+                self:RemoveDebtFromGuildNote(main)
+            end
         end
     end
 end
@@ -802,37 +803,58 @@ function Hacienda:CreateFrame()
     -- Set the ScrollingMessageFrame as the scroll child
     chatScroll:SetScrollChild(Hacienda.chatHistory)
 
-    -- Data Sync Panel
-    local syncFrame = CreateFrame("Frame", nil, frame)
-    syncFrame:SetWidth(170 * Hacienda.scaleFactor)
-    syncFrame:SetHeight(110 * Hacienda.scaleFactor)
-    syncFrame:SetPoint("TOPLEFT", contactFrame, "BOTTOMLEFT", 0, -10 * Hacienda.scaleFactor)
-    syncFrame:SetBackdrop({
-        bgFile = "Interface\\ChatFrame\\ChatFrameBackground",
-        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
-        tile = true, tileSize = 16, edgeSize = 12,
-        insets = { left = 3, right = 3, top = 3, bottom = 3 }
-    })
-    syncFrame:SetBackdropColor(0, 0, 0, 0.7)
-    syncFrame:SetBackdropBorderColor(0.6, 0.6, 0.6)
-
-    local syncTitle = syncFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    syncTitle:SetPoint("TOP", syncFrame, "TOP", 0, -10 * Hacienda.scaleFactor)
-    syncTitle:SetText("Data Sync")
-
-    local importButton = CreateFrame("Button", nil, syncFrame, "UIPanelButtonTemplate")
-    importButton:SetWidth(100 * Hacienda.scaleFactor)
-    importButton:SetHeight(20 * Hacienda.scaleFactor)
-    importButton:SetPoint("TOP", syncTitle, "BOTTOM", 0, -15 * Hacienda.scaleFactor)
-    importButton:SetText("Import")
-    importButton:SetScript("OnClick", function() Hacienda:ShowImportExportFrame("import") end)
-
-    local exportButton = CreateFrame("Button", nil, syncFrame, "UIPanelButtonTemplate")
-    exportButton:SetWidth(100 * Hacienda.scaleFactor)
-    exportButton:SetHeight(20 * Hacienda.scaleFactor)
-    exportButton:SetPoint("TOP", importButton, "BOTTOM", 0, -12 * Hacienda.scaleFactor)
-    exportButton:SetText("Export")
-    exportButton:SetScript("OnClick", function() Hacienda:ShowImportExportFrame("export") end)
+	-- Data Sync Panel
+	local syncFrame = CreateFrame("Frame", nil, frame)
+	syncFrame:SetWidth(170 * Hacienda.scaleFactor)
+	syncFrame:SetHeight(110 * Hacienda.scaleFactor)  -- Increased height to accommodate extra button
+	syncFrame:SetPoint("TOPLEFT", contactFrame, "BOTTOMLEFT", 0, -10 * Hacienda.scaleFactor)
+	syncFrame:SetBackdrop({
+		bgFile = "Interface\\ChatFrame\\ChatFrameBackground",
+		edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+		tile = true, tileSize = 16, edgeSize = 12,
+		insets = { left = 3, right = 3, top = 3, bottom = 3 }
+	})
+	syncFrame:SetBackdropColor(0, 0, 0, 0.7)
+	syncFrame:SetBackdropBorderColor(0.6, 0.6, 0.6)
+	
+	local syncTitle = syncFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+	syncTitle:SetPoint("TOP", syncFrame, "TOP", 0, -10 * Hacienda.scaleFactor)
+	syncTitle:SetText("Data Sync")
+	
+	-- Smaller buttons arranged in a grid
+	local importButton = CreateFrame("Button", nil, syncFrame, "UIPanelButtonTemplate")
+	importButton:SetWidth(70 * Hacienda.scaleFactor)  -- Smaller width
+	importButton:SetHeight(20 * Hacienda.scaleFactor)
+	importButton:SetPoint("TOPLEFT", syncFrame, "TOPLEFT", 10 * Hacienda.scaleFactor, -35 * Hacienda.scaleFactor)
+	importButton:SetText("Import")
+	importButton:SetScript("OnClick", function() Hacienda:ShowImportExportFrame("import") end)
+	
+	local exportButton = CreateFrame("Button", nil, syncFrame, "UIPanelButtonTemplate")
+	exportButton:SetWidth(70 * Hacienda.scaleFactor)  -- Smaller width
+	exportButton:SetHeight(20 * Hacienda.scaleFactor)
+	exportButton:SetPoint("TOPRIGHT", syncFrame, "TOPRIGHT", -10 * Hacienda.scaleFactor, -35 * Hacienda.scaleFactor)
+	exportButton:SetText("Export")
+	exportButton:SetScript("OnClick", function() Hacienda:ShowImportExportFrame("export") end)
+	
+	-- Export for Discord Button (placed below Import button)
+	local discordButton = CreateFrame("Button", nil, syncFrame, "UIPanelButtonTemplate")
+	discordButton:SetWidth(70 * Hacienda.scaleFactor)
+	discordButton:SetHeight(20 * Hacienda.scaleFactor)
+	discordButton:SetPoint("TOP", importButton, "BOTTOM", 0, -5 * Hacienda.scaleFactor)
+	discordButton:SetText("Discord")
+	discordButton:SetScript("OnClick", function() 
+		Hacienda:ExportForDiscord() 
+	end)
+	
+	-- Erase All Button (placed below Export button, aligned with Discord button)
+	local eraseButton = CreateFrame("Button", nil, syncFrame, "UIPanelButtonTemplate")
+	eraseButton:SetWidth(70 * Hacienda.scaleFactor)  -- Same size as others
+	eraseButton:SetHeight(20 * Hacienda.scaleFactor)
+	eraseButton:SetPoint("TOP", exportButton, "BOTTOM", 0, -5 * Hacienda.scaleFactor)
+	eraseButton:SetText("Erase All")
+	eraseButton:SetScript("OnClick", function()
+		StaticPopup_Show("HACIENDA_CONFIRM_ERASE")
+	end)
 
     -- Debt Entry Frame (Deuda Manual)
     local debtEntryFrame = CreateFrame("Frame", nil, frame)
@@ -1489,11 +1511,20 @@ function Hacienda:UpdateContactList()
             GameTooltip:SetOwner(this, "ANCHOR_RIGHT")
             GameTooltip:SetText(displayName)
             GameTooltip:AddLine("Pending OS: " .. amountText, 1, 0, 0)
+            
+            -- Add oldest debt date
+            local oldestDate = Hacienda:GetOldestPendingOSDate(main)
+            if oldestDate then
+                local dateText = date("%m/%d/%Y", oldestDate)
+                local debtAge = Hacienda:GetDebtAgeInDays(main)
+                GameTooltip:AddLine("Oldest OS from: " .. dateText .. " (" .. debtAge .. " days ago)", 1, 1, 1)
+            end
+            
             if memberString ~= "" then
                 GameTooltip:AddLine("Group Members: " .. memberString, 1, 1, 1)
             end
             
-            -- List individual OS records
+            -- List individual OS records with dates
             GameTooltip:AddLine("\nOS Records:")
             local hasRecords = false
             for _, member in ipairs(members) do
@@ -1511,6 +1542,9 @@ function Hacienda:UpdateContactList()
                                 if remSilver > 0 then remText = remText .. remSilver .. "s " end
                                 if remCopper > 0 then remText = remText .. remCopper .. "c" end
                                 
+                                -- Add date to each OS record
+                                local dateText = msg.time and date("%m/%d/%y", msg.time) or "Unknown date"
+                                
                                 local paidText = ""
                                 if msg.paidAmount and msg.paidAmount > 0 then
                                     local paidGold = floor(msg.paidAmount / (COPPER_PER_SILVER * SILVER_PER_GOLD))
@@ -1524,7 +1558,7 @@ function Hacienda:UpdateContactList()
                                     paidText = paidText .. ")"
                                 end
                                 
-                                GameTooltip:AddLine("  " .. remText .. paidText, 1, 1, 1)
+                                GameTooltip:AddLine("  " .. remText .. " - " .. dateText .. paidText, 1, 1, 1)
                             end
                         end
                     end
@@ -1549,7 +1583,7 @@ function Hacienda:UpdateContactList()
             if arg1 == "RightButton" then
                 Hacienda:DeleteConversation(this.contactName)
             elseif arg1 == "LeftButton" and IsShiftKeyDown() then
-                Hacienda:WhisperDebtReminder(this.contactName)
+                Hacienda:SendEnhancedReminder(this.contactName)
             end
         end)
         table.insert(Hacienda.activeContactFrames, contactFrame)
@@ -1581,18 +1615,27 @@ function Hacienda:WhisperDebtReminder(playerName)
         return
     end
     
+    -- Get the oldest pending OS date
+    local oldestDate = self:GetOldestPendingOSDate(playerName)
+    
     -- Convert copper to gold/silver/copper
     local gold = floor(groupTotal / (COPPER_PER_SILVER * SILVER_PER_GOLD))
     local silver = floor((groupTotal - (gold * COPPER_PER_SILVER * SILVER_PER_GOLD)) / COPPER_PER_SILVER)
     local copper = mod(groupTotal, COPPER_PER_SILVER)
     
-    -- Format the message
+    -- Format the message with date
     local amountText = ""
     if gold > 0 then amountText = amountText .. gold .. "g " end
     if silver > 0 then amountText = amountText .. silver .. "s " end
     if copper > 0 then amountText = amountText .. copper .. "c" end
     
-    local message = string.format("Recordatorio: Tienes %s de OS pendiente por pagar a la hermandad. Por favor deposita en el banco de la hermandad cuando te sea conveniente. ¡Gracias!", amountText)
+    local message
+    if oldestDate then
+        local dateText = date("%m/%d/%Y", oldestDate)
+        message = string.format("Recordatorio: Tienes %s de OS pendiente por pagar a la hermandad (desde %s). Por favor deposita en el banco de la hermandad cuando te sea conveniente. ¡Gracias!", amountText, dateText)
+    else
+        message = string.format("Recordatorio: Tienes %s de OS pendiente por pagar a la hermandad. Por favor deposita en el banco de la hermandad cuando te sea conveniente. ¡Gracias!", amountText)
+    end
     
     -- Set the chat box to whisper mode and populate it
     if ChatFrame1EditBox then
@@ -1606,7 +1649,28 @@ function Hacienda:WhisperDebtReminder(playerName)
         SendChatMessage(message, "WHISPER", nil, playerName)
     end
     
-    DEFAULT_CHAT_FRAME:AddMessage("|cffffffff[|cff00ff00Hacienda|cffffffff]|r Whispering debt reminder to " .. playerName .. ".")
+    DEFAULT_CHAT_FRAME:AddMessage("|cffffffff[|cff00ff00Hacienda|cffffffff]|r Whispering debt reminder to " .. playerName .. " with date info.")
+end
+
+-- New function to get the oldest pending OS date
+function Hacienda:GetOldestPendingOSDate(playerName)
+    local main = self:GetMainChar(playerName)
+    local members = self:GetGroupMembers(main)
+    local oldestDate = nil
+    
+    for _, member in ipairs(members) do
+        if self.conversations[member] then
+            for _, msg in ipairs(self.conversations[member]) do
+                if msg.outgoing and msg.moneyAmount and not msg.paymentTime then
+                    if not oldestDate or msg.time < oldestDate then
+                        oldestDate = msg.time
+                    end
+                end
+            end
+        end
+    end
+    
+    return oldestDate
 end
 
 function Hacienda:ShowDeleteConfirmation(contactName)
@@ -2121,9 +2185,7 @@ function Hacienda:CheckAndClearPendingOS(playerName, depositAmount, depositTime)
     return false
 end
 
--------------------------------------------------
--- Export / Import (Classic-Compatible)
--------------------------------------------------
+-- Export / Import
 
 -- Simple serializer
 local function SerializeTable(t)
@@ -2134,14 +2196,27 @@ local function SerializeTable(t)
         first = false
         local key
         if type(k) == "number" then
-            key = "[" .. k .. "]"   -- keep numeric indices
+            key = "[" .. k .. "]"
         else
             key = "[" .. string.format("%q", k) .. "]"
         end
         if type(v) == "table" then
             result = result .. key .. "=" .. SerializeTable(v)
         elseif type(v) == "string" then
-            result = result .. key .. "=" .. string.format("%q", v)
+            -- Special handling for WoW item links and formatting
+            if string.find(v, "|cff[0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F]") or 
+               string.find(v, "|Hitem:") or
+               string.find(v, "|Hplayer:") or
+               string.find(v, "|TInterface") then
+                -- Only escape quotes and backslashes, leave WoW formatting intact
+                local safeString = string.gsub(v, "\\", "\\\\")  -- Escape backslashes
+                safeString = string.gsub(safeString, "\"", "\\\"")  -- Escape quotes
+                safeString = string.gsub(safeString, "\n", "\\n")  -- Escape newlines
+                result = result .. key .. "=\"" .. safeString .. "\""
+            else
+                -- For normal strings, use the standard formatting
+                result = result .. key .. "=" .. string.format("%q", v)
+            end
         else
             result = result .. key .. "=" .. tostring(v)
         end
@@ -2292,13 +2367,77 @@ function Hacienda:ImportData(importString)
 
     local imported = nil
     local success, decoded = pcall(function()
-        return loadstring("return " .. importString)()
+        -- Use a more robust approach for WoW item links
+        local processedString = importString
+        
+        -- First, protect item links by temporarily replacing them
+        local protectedLinks = {}
+        local linkIndex = 1
+        
+        -- Protect |Hitem: links
+        processedString = string.gsub(processedString, "(|Hitem:[^|]+|h%[.-%]|h|r)", function(link)
+            protectedLinks[linkIndex] = link
+            local placeholder = "%%ITEM_LINK_" .. linkIndex .. "%%"
+            linkIndex = linkIndex + 1
+            return placeholder
+        end)
+        
+        -- Protect |Hplayer: links
+        processedString = string.gsub(processedString, "(|Hplayer:[^|]+|h%[.-%]|h|r)", function(link)
+            protectedLinks[linkIndex] = link
+            local placeholder = "%%PLAYER_LINK_" .. linkIndex .. "%%"
+            linkIndex = linkIndex + 1
+            return placeholder
+        end)
+        
+        -- Protect color codes
+        processedString = string.gsub(processedString, "(|cff[0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F])", function(color)
+            protectedLinks[linkIndex] = color
+            local placeholder = "%%COLOR_CODE_" .. linkIndex .. "%%"
+            linkIndex = linkIndex + 1
+            return placeholder
+        end)
+        
+        -- Protect |r codes
+        processedString = string.gsub(processedString, "(|r)", function(reset)
+            protectedLinks[linkIndex] = reset
+            local placeholder = "%%COLOR_RESET_" .. linkIndex .. "%%"
+            linkIndex = linkIndex + 1
+            return placeholder
+        end)
+        
+        -- Now load the processed string
+        local chunk = loadstring("return " .. processedString)
+        if not chunk then
+            error("Failed to parse import string")
+        end
+        
+        local result = chunk()
+        
+        -- Restore protected links in the result
+        local function restoreLinks(obj)
+            if type(obj) == "table" then
+                for k, v in pairs(obj) do
+                    obj[k] = restoreLinks(v)
+                end
+            elseif type(obj) == "string" then
+                for i, link in pairs(protectedLinks) do
+                    obj = string.gsub(obj, "%%ITEM_LINK_" .. i .. "%%", link, 1)
+                    obj = string.gsub(obj, "%%PLAYER_LINK_" .. i .. "%%", link, 1)
+                    obj = string.gsub(obj, "%%COLOR_CODE_" .. i .. "%%", link, 1)
+                    obj = string.gsub(obj, "%%COLOR_RESET_" .. i .. "%%", link, 1)
+                end
+            end
+            return obj
+        end
+        
+        return restoreLinks(result)
     end)
 
     if success and type(decoded) == "table" then
         imported = decoded
     else
-        DEFAULT_CHAT_FRAME:AddMessage("|cffffffff[|cff00ff00Hacienda|cffffffff]|r Failed to decode import string.")
+        DEFAULT_CHAT_FRAME:AddMessage("|cffffffff[|cff00ff00Hacienda|cffffffff]|r Failed to decode import string: " .. (decoded or "unknown error"))
         return
     end
 
@@ -2321,7 +2460,7 @@ function Hacienda:ImportData(importString)
         end
     end
 
-    -- Merge paid conversations
+    -- Enhanced paid conversations import with formatting preservation
     if imported.paidConversations then
         for contact, messages in pairs(imported.paidConversations) do
             if messages and next(messages) then
@@ -2338,7 +2477,7 @@ function Hacienda:ImportData(importString)
                     end
                     if not isDuplicate then
                         table.insert(HaciendaSavedData.paidConversations[contact], {
-                            message = msg.message,
+                            message = msg.message,  -- Now preserves colors/links
                             time = msg.time,
                             moneyAmount = msg.moneyAmount,
                             paidAmount = msg.paidAmount,
@@ -2350,7 +2489,7 @@ function Hacienda:ImportData(importString)
         end
     end
 
-    -- Merge conversation data (most recent unpaid)
+    -- Enhanced conversations import with formatting preservation
     if imported.conversations then
         for contact, msg in pairs(imported.conversations) do
             if msg and msg.message and msg.time and msg.moneyAmount then
@@ -2366,7 +2505,7 @@ function Hacienda:ImportData(importString)
                 end
                 if not isDuplicate then
                     table.insert(HaciendaSavedData.conversations[contact], {
-                        message = msg.message,
+                        message = msg.message,  -- Now preserves colors/links
                         time = msg.time,
                         moneyAmount = msg.moneyAmount
                     })
@@ -2391,33 +2530,50 @@ function Hacienda:ImportData(importString)
     -- Update guild notes
     Hacienda:UpdateAllGuildNotes()
 
-    DEFAULT_CHAT_FRAME:AddMessage("|cffffffff[|cff00ff00Hacienda|cffffffff]|r Import complete. Pending totals, linked characters, paid conversations, conversations, and account settings merged.")
+    DEFAULT_CHAT_FRAME:AddMessage("|cffffffff[|cff00ff00Hacienda|cffffffff]|r Import complete with full item link and color preservation.")
 end
 
 function Hacienda:EraseAllData()
-    -- Wipe all saved data
-    HaciendaSavedData = {
-        conversations = {},
-        paidConversations = {},
-        pendingTotals = {},
-        linkedChars = {},
-        accountSettings = {},
-        transientMessages = {},
-        unreadCounts = {}
-    }
+    -- Properly wipe all saved data by clearing existing tables
+    wipe(HaciendaSavedData.conversations or {})
+    wipe(HaciendaSavedData.paidConversations or {})
+    wipe(HaciendaSavedData.pendingTotals or {})
+    wipe(HaciendaSavedData.linkedChars or {})
+    wipe(HaciendaSavedData.accountSettings or {})
+    
+    -- Initialize if they don't exist
+    HaciendaSavedData.conversations = HaciendaSavedData.conversations or {}
+    HaciendaSavedData.paidConversations = HaciendaSavedData.paidConversations or {}
+    HaciendaSavedData.pendingTotals = HaciendaSavedData.pendingTotals or {}
+    HaciendaSavedData.linkedChars = HaciendaSavedData.linkedChars or {}
+    HaciendaSavedData.accountSettings = HaciendaSavedData.accountSettings or {}
+    
+    -- Clear transient data
+    if Hacienda.transientMessages then
+        wipe(Hacienda.transientMessages)
+    else
+        Hacienda.transientMessages = {}
+    end
+    
+    if Hacienda.unreadCounts then
+        wipe(Hacienda.unreadCounts)
+    else
+        Hacienda.unreadCounts = {}
+    end
 
-    -- Refresh references
+    -- Refresh ALL references
     Hacienda.conversations = HaciendaSavedData.conversations
     Hacienda.paidConversations = HaciendaSavedData.paidConversations
+    Hacienda.pendingTotals = HaciendaSavedData.pendingTotals
     Hacienda.linkedChars = HaciendaSavedData.linkedChars
     Hacienda.accountSettings = HaciendaSavedData.accountSettings
-    Hacienda.transientMessages = HaciendaSavedData.transientMessages
-    Hacienda.unreadCounts = HaciendaSavedData.unreadCounts
+    Hacienda.transientMessages = Hacienda.transientMessages
+    Hacienda.unreadCounts = Hacienda.unreadCounts
 
-    -- Update guild notes
+    -- NOW update guild notes with the CLEARED data
     Hacienda:UpdateAllGuildNotes()
 
-    DEFAULT_CHAT_FRAME:AddMessage("|cffffffff[|cff00ff00Hacienda|cffffffff]|r All data erased.")
+    DEFAULT_CHAT_FRAME:AddMessage("|cffffffff[|cff00ff00Hacienda|cffffffff]|r All data erased and guild notes cleared.")
 end
 
 -- Slash commands
@@ -2521,10 +2677,11 @@ function Hacienda:ShowImportExportFrame(mode)
             f.editBox:HighlightText()
             f.editBox:GetParent():UpdateScrollChildRect() -- Update scroll range
         end
-        f.actionButton:SetText("Copy")
+        f.actionButton:SetText("Select All")
         f.actionButton:SetScript("OnClick", function()
             f.editBox:SetFocus()
             f.editBox:HighlightText()
+            DEFAULT_CHAT_FRAME:AddMessage("|cffffffff[|cff00ff00Hacienda|cffffffff]|r Text selected. Use Ctrl+A and Ctrl+C to copy.")
         end)
     elseif mode == "import" then
         f.title:SetText("Import Data")
@@ -2947,23 +3104,32 @@ function Hacienda:ProcessRaidDebtReminders()
 end
 
 function Hacienda:SendAutoDebtReminder(playerName, debtAmount)
+    -- Get the oldest pending OS date
+    local oldestDate = self:GetOldestPendingOSDate(playerName)
+    
     -- Convert copper to gold/silver/copper
     local gold = floor(debtAmount / (COPPER_PER_SILVER * SILVER_PER_GOLD))
     local silver = floor((debtAmount - (gold * COPPER_PER_SILVER * SILVER_PER_GOLD)) / COPPER_PER_SILVER)
     local copper = mod(debtAmount, COPPER_PER_SILVER)
     
-    -- Format the message
+    -- Format the message with date
     local amountText = ""
     if gold > 0 then amountText = amountText .. gold .. "g " end
     if silver > 0 then amountText = amountText .. silver .. "s " end
     if copper > 0 then amountText = amountText .. copper .. "c" end
     
-    local message = string.format("Recordatorio: Tienes %s de OS pendiente por pagar a la hermandad. Por favor deposita en el banco de la hermandad cuando te sea conveniente. ¡Gracias!", amountText)
+    local message
+    if oldestDate then
+        local dateText = date("%m/%d/%Y", oldestDate)
+        message = string.format("Recordatorio automático: Tienes %s de OS pendiente por pagar a la hermandad (desde %s). Por favor deposita en el banco de la hermandad cuando te sea conveniente. ¡Gracias!", amountText, dateText)
+    else
+        message = string.format("Recordatorio automático: Tienes %s de OS pendiente por pagar a la hermandad. Por favor deposita en el banco de la hermandad cuando te sea conveniente. ¡Gracias!", amountText)
+    end
     
     -- Send the whisper
     SendChatMessage(message, "WHISPER", nil, playerName)
     
-    DEFAULT_CHAT_FRAME:AddMessage("|cffffffff[|cff00ff00Hacienda|cffffffff]|r Sent auto-reminder to " .. playerName .. ".")
+    DEFAULT_CHAT_FRAME:AddMessage("|cffffffff[|cff00ff00Hacienda|cffffffff]|r Sent auto-reminder to " .. playerName .. " with date info.")
 end
 
 -- Add a setting to toggle this feature
@@ -2979,4 +3145,323 @@ function Hacienda:ToggleAutoRaidReminder()
     else
         DEFAULT_CHAT_FRAME:AddMessage("|cffffffff[|cff00ff00Hacienda|cffffffff]|r Auto raid reminders disabled.")
     end
+end
+
+function Hacienda:GetDebtAgeInDays(playerName)
+    local oldestDate = self:GetOldestPendingOSDate(playerName)
+    if not oldestDate then return 0 end
+    
+    local currentTime = time()
+    local ageInSeconds = currentTime - oldestDate
+    local ageInDays = floor(ageInSeconds / 86400) -- 86400 seconds in a day
+    
+    return ageInDays
+end
+
+-- Enhanced reminder with age information
+function Hacienda:SendEnhancedReminder(playerName)
+    local groupTotal = Hacienda:GetGroupPending(playerName)
+    local oldestDate = self:GetOldestPendingOSDate(playerName)
+    local debtAge = self:GetDebtAgeInDays(playerName)
+    
+    if groupTotal <= 0 then 
+        DEFAULT_CHAT_FRAME:AddMessage("|cffffffff[|cff00ff00Hacienda|cffffffff]|r " .. playerName .. " has no pending OS.")
+        return 
+    end
+    
+    -- Convert copper to gold/silver/copper
+    local gold = floor(groupTotal / (COPPER_PER_SILVER * SILVER_PER_GOLD))
+    local silver = floor((groupTotal - (gold * COPPER_PER_SILVER * SILVER_PER_GOLD)) / COPPER_PER_SILVER)
+    local copper = mod(groupTotal, COPPER_PER_SILVER)
+    
+    local amountText = ""
+    if gold > 0 then amountText = amountText .. gold .. "g " end
+    if silver > 0 then amountText = amountText .. silver .. "s " end
+    if copper > 0 then amountText = amountText .. copper .. "c" end
+    
+    local message
+    if oldestDate then
+        local dateText = self:FormatDateWithMonthName(oldestDate)
+        if debtAge > 14 then
+            message = string.format("Recordatorio importante: Tienes %s de OS pendiente por %d días (desde %s). Por favor coordina el pago con los oficiales. ¡Gracias!", amountText, debtAge, dateText)
+        else
+            message = string.format("Recordatorio: Tienes %s de OS pendiente por %d días (desde %s). Por favor deposita en el banco de la hermandad. ¡Gracias!", amountText, debtAge, dateText)
+        end
+    else
+        message = string.format("Recordatorio: Tienes %s de OS pendiente por pagar a la hermandad. Por favor deposita en el banco de la hermandad. ¡Gracias!", amountText)
+    end
+    
+    -- Set the chat box to whisper mode and populate it
+    if ChatFrame1EditBox then
+        ChatFrame1EditBox:SetAttribute("chatType", "WHISPER")
+        ChatFrame1EditBox:SetAttribute("tellTarget", playerName)
+        ChatFrame1EditBox:SetText(message)
+        ChatFrame1EditBox:Show()
+        ChatFrame1EditBox:SetFocus()
+    else
+        -- Fallback: use SendChatMessage if edit box isn't available
+        SendChatMessage(message, "WHISPER", nil, playerName)
+    end
+    
+    DEFAULT_CHAT_FRAME:AddMessage("|cffffffff[|cff00ff00Hacienda|cffffffff]|r Sent enhanced reminder to " .. playerName .. " with date info.")
+end
+
+function Hacienda:FormatDateWithMonthName(timestamp)
+    if not timestamp then return "Unknown date" end
+    
+    local monthNames = {
+        "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
+        "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
+    }
+    
+    local dateTable = date("*t", timestamp)
+    local day = dateTable.day
+    local month = monthNames[dateTable.month]
+    local year = dateTable.year
+    
+    return string.format("%d/%s/%d", day, month, year)
+end
+
+-- Function to format short date for tooltips
+function Hacienda:FormatShortDateWithMonthName(timestamp)
+    if not timestamp then return "Unknown date" end
+    
+    local monthNames = {
+        "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+        "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
+    }
+    
+    local dateTable = date("*t", timestamp)
+    local day = dateTable.day
+    local month = monthNames[dateTable.month]
+    local year = dateTable.year
+    
+    return string.format("%d-%s-%d", day, month, year)
+end
+
+function Hacienda:ExportForDiscord()
+    local report = self:GenerateDiscordDebtReport()
+    
+    -- Show in a popup for easy copying
+    ShowTextPopup("Hacienda Discord Export", report, function(text)
+        -- Optional: You could add auto-copy functionality here
+        DEFAULT_CHAT_FRAME:AddMessage("|cffffffff[|cff00ff00Hacienda|cffffffff]|r Discord report copied to clipboard (use Ctrl+A, Ctrl+C)")
+    end)
+end
+
+function Hacienda:GenerateDiscordDebtReport()
+    local dateStr = date("%Y-%m-%d %H:%M")
+    
+    -- Header with ASCII formatting
+    local report = "=== HACIENDA DEBT REPORT ===\n"
+    report = report .. "Generated: " .. dateStr .. "\n"
+    report = report .. "=================================\n\n"
+    
+    -- Get all debtors sorted by total debt (highest first)
+    local debtors = {}
+    local totalOutstanding = 0
+    local totalDebtors = 0
+    
+    for contact, amount in pairs(self.pendingTotals or {}) do
+        if amount > 0 and contact ~= GUILD_BANK_CONTACT and contact ~= PAID_OS_CONTACT then
+            local main = self:GetMainChar(contact)
+            local groupTotal = self:GetGroupPending(main)
+            
+            -- Only add each main character once
+            if not debtors[main] then
+                debtors[main] = {
+                    name = main,
+                    total = groupTotal,
+                    members = self:GetGroupMembers(main),
+                    oldestDate = self:GetOldestPendingOSDate(main),
+                    debtAge = self:GetDebtAgeInDays(main)
+                }
+                totalOutstanding = totalOutstanding + groupTotal
+                totalDebtors = totalDebtors + 1
+            end
+        end
+    end
+    
+    -- Convert to array and sort by total debt (highest first)
+    local debtorList = {}
+    for _, debtor in pairs(debtors) do
+        table.insert(debtorList, debtor)
+    end
+    
+    table.sort(debtorList, function(a, b) 
+        return a.total > b.total 
+    end)
+    
+    -- Summary section
+    report = report .. "--- SUMMARY ---\n"
+    report = report .. "* Total Outstanding: " .. self:FormatMoney(totalOutstanding) .. "\n"
+    report = report .. "* Total Debtors: " .. totalDebtors .. "\n"
+    
+    if totalDebtors > 0 then
+        report = report .. "* Average Debt: " .. self:FormatMoney(totalOutstanding / totalDebtors) .. "\n"
+    end
+    report = report .. "\n"
+    
+    -- Debtor details section
+    report = report .. "--- DEBT DETAILS ---\n"
+    
+    if table.getn(debtorList) == 0 then
+        report = report .. ">>> NO OUTSTANDING DEBTS! <<<\n\n"
+    else
+        for i, debtor in ipairs(debtorList) do
+            local symbol = self:GetDebtSymbol(debtor.debtAge)
+            local urgency = self:GetUrgencyLevel(debtor.debtAge)
+            
+            report = report .. symbol .. " " .. debtor.name .. "\n"
+            report = report .. "  - Amount: " .. self:FormatMoney(debtor.total) .. "\n"
+            
+            if debtor.oldestDate then
+                local dateText = self:FormatDateForDiscord(debtor.oldestDate)
+                report = report .. "  - Oldest OS: " .. dateText .. " (" .. debtor.debtAge .. " days ago)\n"
+            end
+            
+            if table.getn(debtor.members) > 1 then
+                report = report .. "  - Linked Characters: " .. table.concat(debtor.members, ", ") .. "\n"
+            end
+            
+            -- Add individual OS records for this debtor group
+            local hasRecords = false
+            local records = {}
+            
+            for _, member in ipairs(debtor.members) do
+                if self.conversations[member] then
+                    for _, msg in ipairs(self.conversations[member]) do
+                        if msg.outgoing and msg.moneyAmount and not msg.paymentTime then
+                            local remaining = msg.moneyAmount - (msg.paidAmount or 0)
+                            if remaining > 0 then
+                                hasRecords = true
+                                local dateText = msg.time and self:FormatShortDate(msg.time) or "Unknown"
+                                local amountText = self:FormatMoney(remaining)
+                                
+                                local paidText = ""
+                                if msg.paidAmount and msg.paidAmount > 0 then
+                                    paidText = " (Paid: " .. self:FormatMoney(msg.paidAmount) .. ")"
+                                end
+                                
+                                table.insert(records, amountText .. " - " .. dateText .. paidText)
+                            end
+                        end
+                    end
+                end
+            end
+            
+            if hasRecords and table.getn(records) > 0 then
+                report = report .. "  - OS Records:\n"
+                for j, record in ipairs(records) do
+                    report = report .. "    -> " .. record .. "\n"
+                end
+            end
+            
+            report = report .. "  - Status: " .. urgency .. "\n"
+            
+            -- Add separator between debtors (but not after the last one)
+            if i < table.getn(debtorList) then
+                report = report .. "---------------------------------\n"
+            end
+        end
+    end
+    
+    -- Footer
+    report = report .. "\n=================================\n"
+    report = report .. "Report generated by Hacienda Conquistadores\n"
+    report = report .. "For questions, contact guild leadership"
+    
+    return report
+end
+
+-- Helper function to get symbol based on debt age
+function Hacienda:GetDebtSymbol(debtAge)
+    if not debtAge or debtAge == 0 then return "[NEW]" end
+    if debtAge <= 7 then return "[RECENT]" end
+    if debtAge <= 14 then return "[ATTENTION]" end
+    if debtAge <= 30 then return "[URGENT]" end
+    return "[CRITICAL]"
+end
+
+-- Helper function to get urgency level text
+function Hacienda:GetUrgencyLevel(debtAge)
+    if not debtAge or debtAge == 0 then return "Recent" end
+    if debtAge <= 7 then return "Recent" end
+    if debtAge <= 14 then return "Attention Needed" end
+    if debtAge <= 30 then return "Urgent" end
+    return "Critical - Contact Officers"
+end
+
+-- Helper function to format dates for Discord
+function Hacienda:FormatDateForDiscord(timestamp)
+    if not timestamp then return "Unknown date" end
+    return date("%b %d, %Y", timestamp)
+end
+
+-- Helper function for short dates in records
+function Hacienda:FormatShortDate(timestamp)
+    if not timestamp then return "Unknown" end
+    return date("%m/%d/%y", timestamp)
+end
+
+-- Helper function to format money for Discord
+function Hacienda:FormatMoney(copper)
+    local gold = floor(copper / 10000)
+    local silver = floor(mod(copper, 10000) / 100)
+    local copperRemainder = mod(copper, 100)
+    
+    local parts = {}
+    if gold > 0 then table.insert(parts, gold .. "g") end
+    if silver > 0 then table.insert(parts, silver .. "s") end
+    if copperRemainder > 0 or table.getn(parts) == 0 then 
+        table.insert(parts, copperRemainder .. "c") 
+    end
+    
+    return table.concat(parts, " ")
+end
+
+-- Helper function to format money for Discord
+function Hacienda:FormatMoney(copper)
+    local gold = floor(copper / 10000)
+    local silver = floor(mod(copper, 10000) / 100)
+    local copperRemainder = mod(copper, 100)
+    
+    local parts = {}
+    if gold > 0 then table.insert(parts, gold .. "g") end
+    if silver > 0 then table.insert(parts, silver .. "s") end
+    if copperRemainder > 0 or table.getn(parts) == 0 then 
+        table.insert(parts, copperRemainder .. "c") 
+    end
+    
+    return table.concat(parts, " ")
+end
+
+-- Helper function to get emoji based on debt age
+function Hacienda:GetDebtEmoji(debtAge)
+    if not debtAge or debtAge == 0 then return "🆕" end
+    if debtAge <= 7 then return "💚" end
+    if debtAge <= 14 then return "💛" end
+    if debtAge <= 30 then return "🟠" end
+    return "🔴"
+end
+
+-- Helper function to get urgency level text
+function Hacienda:GetUrgencyLevel(debtAge)
+    if not debtAge or debtAge == 0 then return "Recent" end
+    if debtAge <= 7 then return "Recent" end
+    if debtAge <= 14 then return "Attention Needed" end
+    if debtAge <= 30 then return "Urgent" end
+    return "Critical - Contact Officers"
+end
+
+-- Helper function to format dates for Discord
+function Hacienda:FormatDateForDiscord(timestamp)
+    if not timestamp then return "Unknown date" end
+    return date("%b %d, %Y", timestamp)
+end
+
+-- Helper function for short dates in records
+function Hacienda:FormatShortDate(timestamp)
+    if not timestamp then return "Unknown" end
+    return date("%m/%d/%y", timestamp)
 end
